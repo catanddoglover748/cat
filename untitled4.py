@@ -146,3 +146,30 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
+# 出来高のバーグラフを追加（ローソク足の下に表示）
+fig.add_trace(go.Bar(
+    x=data.index,
+    y=data['Volume'],
+    name='出来高',
+    marker_color='lightgray',
+    yaxis='y2'
+))
+
+# レイアウトを調整して、2つのy軸を使う
+fig.update_layout(
+    yaxis=dict(
+        title='価格',
+        domain=[0.3, 1]  # 上部70%
+    ),
+    yaxis2=dict(
+        title='出来高',
+        domain=[0, 0.25],  # 下部25%
+        showgrid=False
+    ),
+    xaxis=dict(
+        domain=[0, 1],
+        rangeslider_visible=False
+    ),
+    height=700  # 高さ調整（任意）
+)
+
