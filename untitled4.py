@@ -54,12 +54,13 @@ if ticker:
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 
-data_raw['SMA20'] = data_raw['Close'].rolling(window=20).mean()
-# 移動平均を計算
+# データ取得
+data_raw = yf.Ticker(ticker).history(period=period)
+
+# SMA20 を計算
 data_raw['SMA20'] = data_raw['Close'].rolling(window=20).mean()
 
+# チャート表示
 st.line_chart(data_raw[['Close', 'SMA20']])
-st.subheader("📊 出来高")
-st.bar_chart(data_raw['Volume'])
 
 
