@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
 # タイトル
-st.title("📊 株価チャート＆ローソク足ビューア")
+st.title(" 株価チャート＆ローソク足ビューア")
 
 # ティッカー入力と期間指定
 ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
@@ -62,10 +62,13 @@ import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
 
-st.title("📊 ローソク足チャートビューア")
+st.title(" ローソク足チャートビューア")
 
 # ユーザー入力
-ticker = st.text_input("ティッカーシンボル（例：AAPL、MSFT、TSLA）", "AAPL")
+ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+
+ticker = st.selectbox("ウォッチリストからティッカーを選んでください", ticker_list, index=0)
+
 
 period = st.selectbox("表示期間を選んでください",
                       ("1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"),
