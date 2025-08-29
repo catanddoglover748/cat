@@ -96,4 +96,33 @@ if ticker:
             st.warning("データが取得できませんでした。ティッカーを確認してください。")
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
+# ...前略...
+fig = go.Figure(data=[go.Candlestick(
+    x=data.index,
+    open=data['Open'],
+    high=data['High'],
+    low=data['Low'],
+    close=data['Close'],
+    increasing_line_color='green',
+    decreasing_line_color='red'
+)])
+
+# SMAの計算と追加
+data['SMA20'] = data['Close'].rolling(window=20).mean()
+
+fig.add_trace(go.Scatter(
+    x=data.index,
+    y=data['SMA20'],
+    mode='lines',
+    line=dict(color='blue', width=1),
+    name='SMA 20日'
+))
+
+fig.update_layout(
+    xaxis_title='日付',
+    yaxis_title='価格（USD）',
+    xaxis_rangeslider_visible=False
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
