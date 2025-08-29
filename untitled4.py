@@ -15,15 +15,7 @@ if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = ticker_list[0]
 # カラムで分けて左寄せに
 col1, col2 = st.columns([1, 3])  # 左: ボタン, 右: チャート表示など
-with col1:
-    st.markdown("### ティッカー")
-    for t in tickers:
-        if st.button(t):
-            st.session_state.selected_ticker = t
 
-with col2:
-    st.markdown(f"### 選択中のティッカー: `{st.session_state.selected_ticker}`")
-    # ここにチャートや詳細表示処理を入れる（例: yfinance, plotly 等）
 
 # カスタムボタンのように見せる
 for ticker in ticker_list:
