@@ -54,3 +54,9 @@ if ticker:
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
 
+data_raw['SMA20'] = data_raw['Close'].rolling(window=20).mean()
+st.line_chart(data_raw[['Close', 'SMA20']])
+st.subheader("📊 出来高")
+st.bar_chart(data_raw['Volume'])
+
+
