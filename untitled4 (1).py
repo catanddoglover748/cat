@@ -32,3 +32,23 @@ st.dataframe(df)
 
 # 差分チャート
 st.bar_chart(df["AIターゲット"] - df["現在価格"])
+import streamlit as st
+import yfinance as yf
+
+st.title("株価チャートビューア")
+
+# ユーザーからティッカーを入力してもらう
+ticker = st.text_input("ティッカーシンボルを入力してください（例：AAPL、GOOG、MSFT）", "AAPL")
+
+# yfinanceで株価データを取得
+if ticker:
+    try:
+        data = yf.Ticker(ticker).history(period="6mo")
+        if not data.empty:
+            st.subheader(f"{ticker} の過去6ヶ月の終値チャート")
+            st.line_chart(data['Close'])
+        else:
+            st.warning("データが見つかりませんでした。ティッカーが正しいか確認してください。")
+    except Exception as e:
+        st.error(f"データ取得中にエラーが発生しました: {e}")
+
