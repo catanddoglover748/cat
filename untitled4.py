@@ -12,4 +12,4 @@ Original file is located at
 import streamlit as st
 
 st.title("こんにちは！")
-st.write("これは最初のStreamlitアプリです。")
+st.write("初めまして。これは最初のStreamlitアプリです。")
