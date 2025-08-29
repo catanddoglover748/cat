@@ -10,20 +10,23 @@ st.title(" 株価チャート＆ローソク足ビューア")
 # ティッカー入力と期間指定
 # ウォッチリストを左に一覧表示する
 ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
-ticker = st.sidebar.radio("ティッカーを選んでください", ticker_list)
+# セッションステート初期化
 if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = ticker_list[0]
-# カラムで分けて左寄せに
-col1, col2 = st.columns([1, 3])  # 左: ボタン, 右: チャート表示など
 
+# 画面を左・右に分割（左: ティッカーボタン、右: チャートや詳細）
+col1, col2 = st.columns([1, 3])
 
-# カスタムボタンのように見せる
-for ticker in ticker_list:
-    if st.button(ticker):
-        st.session_state.selected_ticker = ticker
+# ティッカーボタン一覧（TradingView風）
+with col1:
+    st.markdown("#### ティッカー")
+    for ticker in ticker_list:
+        if st.button(ticker):
+            st.session_state.selected_ticker = ticker
 
-# 選択されたティッカーを表示
-st.markdown(f"**選択中: {st.session_state.selected_ticker}**")
+# 選択されたティッカーを表示（今後ここにチャートを連動）
+with col2:
+    st.markdown(f"### 選択中のティッカー: `{st.session_state.selected_ticker}`")
 
 days = st.slider("何日分のデータを表示しますか？", 30, 365, 180)
 
