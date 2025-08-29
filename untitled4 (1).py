@@ -12,7 +12,7 @@ Original file is located at
 
 
 st.title("こんにちは！")
-st.write("これは最初のStreamlitアプリです。")
+st.write("初めまして！これは最初のStreamlitアプリです。")
 import streamlit as st
 import pandas as pd
 
