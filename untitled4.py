@@ -145,31 +145,38 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+            # 出来高バー
+            fig.add_trace(go.Bar(
+                x=data.index,
+                y=data['Volume'],
+                name='出来高',
+                marker_color='lightgray',
+                yaxis='y2',
+                opacity=0.5
+            ))
 
-# 出来高のバーグラフを追加（ローソク足の下に表示）
-fig.add_trace(go.Bar(
-    x=data.index,
-    y=data['Volume'],
-    name='出来高',
-    marker_color='lightgray',
-    yaxis='y2'
-))
+            # レイアウト設定
+            fig.update_layout(
+                xaxis=dict(
+                    rangeslider=dict(visible=False),
+                    title='日付'
+                ),
+                yaxis=dict(
+                    title='価格',
+                    domain=[0.3, 1]
+                ),
+                yaxis2=dict(
+                    title='出来高',
+                    domain=[0, 0.25],
+                    showgrid=False
+                ),
+                height=700,
+                margin=dict(l=50, r=25, t=50, b=50)
+            )
 
-# レイアウトを調整して、2つのy軸を使う
-fig.update_layout(
-    yaxis=dict(
-        title='価格',
-        domain=[0.3, 1]  # 上部70%
-    ),
-    yaxis2=dict(
-        title='出来高',
-        domain=[0, 0.25],  # 下部25%
-        showgrid=False
-    ),
-    xaxis=dict(
-        domain=[0, 1],
-        rangeslider_visible=False
-    ),
-    height=700  # 高さ調整（任意）
-)
+            st.plotly_chart(fig, use_container_width=True)
 
+        else:
+            st.warning("データが取得できませんでした。")
+    except Exception as e:
+        st.error(f"エラーが発生しました: {e}")
