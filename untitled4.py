@@ -73,3 +73,44 @@ if ticker:
             st.warning("データが見つかりませんでした。ティッカーが正しいか確認してください。")
     except Exception as e:
         st.error(f"データ取得中にエラーが発生しました: {e}")
+
+import streamlit as st
+import yfinance as yf
+import plotly.graph_objects as go
+
+st.title("ローソク足チャートビューア")
+
+# ティッカーと期間を入力
+ticker = st.text_input("ティッカーシンボルを入力してください（例：AAPL、MSFT、GOOG）", "AAPL")
+period = st.selectbox("表示期間を選択してください", 
+                      ("1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"), 
+                      index=2)
+
+if ticker:
+    try:
+        data = yf.Ticker(ticker).history(period=period)
+        if not data.empty:
+            st.subheader(f"{ticker} のローソク足チャート（{period}）")
+
+            fig = go.Figure(data=[go.Candlestick(
+                x=data.index,
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close'],
+                increasing_line_color='green',
+                decreasing_line_color='red'
+            )])
+
+            fig.update_layout(
+                xaxis_title='日付',
+                yaxis_title='価格',
+                xaxis_rangeslider_visible=False
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("データが取得できませんでした。ティッカーを確認してください。")
+    except Exception as e:
+        st.error(f"エラーが発生しました: {e}")
+
