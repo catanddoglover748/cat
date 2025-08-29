@@ -21,3 +21,31 @@ if ticker:
             st.warning("データが取得できませんでした。")
     except Exception as e:
         st.error(f"エラー: {e}")
+
+from predictor import simple_forecast  # ← 新たに追加
+
+# ...（中略）...
+
+if ticker:
+    try:
+        df = get_stock_data(ticker, period)
+        if not df.empty:
+            # チャートの表示
+            if chart_type == "ラインチャート":
+                show_line_chart(df, ticker)
+            else:
+                show_candlestick_chart(df, ticker)
+
+            # 🔮 予測の表示
+            st.markdown("---")
+            st.subheader("🔮 株価予測（デモ）")
+
+            forecast_df = simple_forecast(df, days_ahead=5)
+            if forecast_df is not None:
+                st.line_chart(forecast_df["Forecast"])
+            else:
+                st.warning("予測データの生成に失敗しました。")
+        else:
+            st.warning("データが取得できませんでした。")
+    except Exception as e:
+        st.error(f"エラー: {e}")
