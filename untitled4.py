@@ -8,7 +8,10 @@ import plotly.graph_objects as go
 st.title("📊 株価チャート＆ローソク足ビューア")
 
 # ティッカー入力と期間指定
-ticker = st.text_input("ティッカーシンボルを入力してください（例：AAPL, MSFT, TSLA）", "AAPL")
+ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+
+ticker = st.selectbox("ウォッチリストからティッカーを選んでください", ticker_list, index=0)
+
 days = st.slider("何日分のデータを表示しますか？", 30, 365, 180)
 period_choice = st.selectbox("表示期間（ローソク足用）", ("1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"), index=2)
 
