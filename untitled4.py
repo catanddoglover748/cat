@@ -6,10 +6,7 @@ import plotly.graph_objects as go
 
 # タイトル
 st.title("📊 株価チャート＆ローソク足ビューア")
-# OKな例（先に period を定義）
-period = st.selectbox("期間を選んでください", ["1mo", "3mo", "6mo", "1y", "2y", "5y", "max"], index=2)
 
-data_raw = yf.Ticker(ticker).history(period=period)  # ← OK
 # ティッカー入力と期間指定
 ticker = st.text_input("ティッカーシンボルを入力してください（例：AAPL, MSFT, TSLA）", "AAPL")
 days = st.slider("何日分のデータを表示しますか？", 30, 365, 180)
@@ -57,14 +54,5 @@ if ticker:
 
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
-
-# データ取得
-data_raw = yf.Ticker(ticker).history(period=period)
-
-# SMA20 を計算
-data_raw['SMA20'] = data_raw['Close'].rolling(window=20).mean()
-
-# チャート表示
-st.line_chart(data_raw[['Close', 'SMA20']])
 
 
