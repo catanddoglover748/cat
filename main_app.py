@@ -4,7 +4,10 @@ from chart import show_line_chart, show_candlestick_chart  # ← 追加
 
 st.title("📈 株価チャートアプリ（分離版）")
 
-ticker = st.text_input("ティッカーを入力してください", "AAPL")
+ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+
+ticker = st.selectbox("ウォッチリストからティッカーを選んでください", ticker_list, index=0)
+
 period = st.selectbox("期間", ["1mo", "3mo", "6mo", "1y", "5y", "max"], index=2)
 
 chart_type = st.radio("チャート種類を選んでください", ["ラインチャート", "ローソク足チャート"])
