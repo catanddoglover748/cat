@@ -109,6 +109,9 @@ fig = go.Figure(data=[go.Candlestick(
 
 # SMAの計算と追加
 data['SMA20'] = data['Close'].rolling(window=20).mean()
+data['SMA50'] = data['Close'].rolling(window=50).mean()
+data['SMA200'] = data['Close'].rolling(window=200).mean()
+
 
 fig.add_trace(go.Scatter(
     x=data.index,
@@ -116,6 +119,23 @@ fig.add_trace(go.Scatter(
     mode='lines',
     line=dict(color='blue', width=1),
     name='SMA 20日'
+))
+# SMA50（赤）
+fig.add_trace(go.Scatter(
+    x=data.index,
+    y=data['SMA50'],
+    mode='lines',
+    line=dict(color='red', width=1),
+    name='SMA 50日'
+))
+
+# SMA200（紫）
+fig.add_trace(go.Scatter(
+    x=data.index,
+    y=data['SMA200'],
+    mode='lines',
+    line=dict(color='purple', width=1),
+    name='SMA 200日'
 ))
 
 fig.update_layout(
