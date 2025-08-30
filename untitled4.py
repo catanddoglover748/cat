@@ -112,7 +112,23 @@ st.subheader("📋 決算概要")
 try:
     earnings = finnhub_client.company_earnings(ticker, limit=1)[0]
     metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
+        # 実売上データ取得（financials_reportedから）
+    financials = finnhub_client.financials_reported(symbol=ticker, freq='quarterly')
+    report_data = financials.get("data", [])
+    rev_actual = 0
+    if report_data:
+        latest_report = report_data[0]
+        rev_actual_str = latest_report["report"]["ic"].get("Revenue", None)
+        rev_actual = float(rev_actual_str) / 1e9 if rev_actual_str else 0
+
     st.json(earnings)  # ← earningsオブジェクトの中身を可視化（デバッグ用）
+    
+        # 予想売上も metrics から取得（年間でなく四半期ベース）
+    rev_est_raw = metrics.get("revenuePerShare", 0)
+    next_rev_est = metrics.get("revenuePerShareForecast", 0)
+    rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 1株あたり→全体へ換算
+    rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
+
 
     # EPS & Revenue
     eps_actual = earnings.get("actual", 0)
