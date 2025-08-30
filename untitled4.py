@@ -45,7 +45,7 @@ if ticker:
         st.subheader("📈 終値チャート（matplotlib）")
         fig, ax = plt.subplots()
         ax.plot(data_raw.index, data_raw['Close'], label='終値')
-        ax.set_title(f"{ticker} の終値チャート")
+        ax.set_title({st.session_state.selected_ticker} の終値チャート")
         ax.set_xlabel("日付")
         ax.set_ylabel("価格（USD）")
         ax.legend()
@@ -83,11 +83,25 @@ import plotly.graph_objects as go
 st.title(" ローソク足チャートビューア")
 
 # ユーザー入力
+# ウォッチリストを左に一覧表示する
 ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+# セッションステート初期化
+if "selected_ticker" not in st.session_state:
+    st.session_state.selected_ticker = ticker_list[0]
 
-ticker = st.selectbox("ウォッチリストからティッカーを選んでください", ticker_list, index=0)
+# 画面を左・右に分割（左: ティッカーボタン、右: チャートや詳細）
+col1, col2 = st.columns([1, 3])
 
+# ティッカーボタン一覧（TradingView風）
+with col1:
+    st.markdown("#### ティッカー")
+    for ticker in ticker_list:
+        if st.button(ticker):
+            st.session_state.selected_ticker = ticker
 
+# 選択されたティッカーを表示（今後ここにチャートを連動）
+with col2:
+    st.markdown(f"### 選択中のティッカー: `{st.session_state.selected_ticker}`")
 period = st.selectbox("表示期間を選んでください",
                       ("1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"),
                       index=2)
