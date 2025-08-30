@@ -149,7 +149,9 @@ try:
     metrics = bf.get("metric", {}) if isinstance(bf, dict) else {}
 
     shares_outstanding = metrics.get("sharesOutstanding", 0) or 0
-
+except Exception as e:
+    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
+try:   
     # 実売上（financials_reported）— dict/list 両対応
 financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
 
@@ -192,6 +194,8 @@ if report_data:
                     except Exception:
                         pass
 
+except Exception as e:
+    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
 
     # 予想売上（自動換算）
     # 優先順: revenuePerShareForecast > revenuePerShare > revenuePerShareTTM
