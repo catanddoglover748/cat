@@ -127,15 +127,18 @@ try:
 
     # 実売上値（B単位）を取得
     rev_actual = 0
-    try:
-        if report_data and isinstance(report_data[0], dict):
-            latest_report = report_data[0]
-            rev_actual_str = latest_report.get("report", {}).get("ic", {}).get("Revenue", None)
-            if rev_actual_str:
-                rev_actual = float(rev_actual_str) / 1e9
-    except Exception as e:
-        st.warning(f"売上実績データ取得時のエラー: {e}")
-        rev_actual = 0
+try:
+    if report_data and isinstance(report_data[0], dict):
+        latest_report = report_data[0]
+        report_section = latest_report.get("report", {})
+        if isinstance(report_section, dict):
+            rev_actual_str = report_section.get("ic", {}).get("Revenue", None)
+            rev_actual = float(rev_actual_str) / 1e9 if rev_actual_str else 0
+    else:
+        st.warning("report_data[0] は dict ではありません")
+except Exception as e:
+    st.warning(f"売上実績データ取得時のエラー: {e}")
+
 
     # earnings の内容をデバッグ表示（必要に応じて削除OK）
     st.json(earnings)
