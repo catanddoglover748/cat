@@ -34,7 +34,7 @@ with col1:
 
 # 選択されたティッカーを表示（今後ここにチャートを連動）
 with col2:
-    st.markdown(f"### 選択中のティッカー: `{st.session_state.selected_ticker}`")
+    st.markdown(f"### 選択中のティッカー: `{f"{ticker}}`")
 
 days = st.slider("何日分のデータを表示しますか？", 30, 365, 180)
 
