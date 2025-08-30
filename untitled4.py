@@ -3,7 +3,7 @@
 # =============================
 import streamlit as st
 import yfinance as yf
-import finnhub  # ← ここに追加
+import finnhub  
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
