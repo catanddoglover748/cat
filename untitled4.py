@@ -81,7 +81,71 @@ with col2:
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+        
         else:
             st.warning("⚠️ データが取得できませんでした。")
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
+        # ------------------------------------------
+# 📊 決算サマリー表示（チャートの下）
+# ------------------------------------------
+st.markdown("---")
+st.subheader("📋 決算概要")
+
+# 仮のデータ（画像を参考に）
+eps_actual = 1.04
+eps_est = 1.01
+eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2)
+
+rev_actual = 46.74
+rev_est = 46.13
+rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2)
+
+next_eps_est = 1.19
+next_rev_est = 52.76
+next_rev = 54.00
+next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2)
+
+# 2列構成で表示
+col_a, col_b = st.columns(2)
+
+with col_a:
+    st.metric("EPS", f"{eps_actual}", f"{eps_diff:+.2f}%", delta_color="normal")
+    st.metric("Next Qtr EPS (Est.)", f"{next_eps_est}")
+    st.metric("Annual EPS (Est.)", "4.37")
+
+with col_b:
+    st.metric("Revenue (B)", f"{rev_actual}B", f"{rev_diff:+.2f}%", delta_color="normal")
+    st.metric("Next Qtr Revenue", f"{next_rev}B", f"{next_rev_diff:+.2f}%")
+    st.metric("Annual Revenue (Est.)", "203.4B")
+
+# ターゲット価格のグラフ（Plotly棒グラフ）
+import plotly.express as px
+import pandas as pd
+
+price_data = pd.DataFrame({
+    "Label": ["Before", "After", "Analyst Target", "AI Target"],
+    "Price": [181.75, 176.36, 167.24, 178.20]
+})
+
+fig_price = px.bar(price_data, x="Price", y="Label", orientation="h",
+                   text="Price", color="Label",
+                   color_discrete_map={
+                       "Before": "lightblue",
+                       "After": "green",
+                       "Analyst Target": "orange",
+                       "AI Target": "red"
+                   })
+fig_price.update_layout(
+    title="Stock & Target Prices",
+    xaxis_title="価格 (USD)",
+    yaxis_title="",
+    height=400
+)
+st.plotly_chart(fig_price, use_container_width=True)
+
+# AI Rating（仮置き）
+st.markdown("### 🤖 AI Rating: 📈")
+st.caption("*Earnings report released on 2025-08-27. Informational purposes only. Please consult with a professional before investing.*")
+
