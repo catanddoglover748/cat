@@ -112,6 +112,7 @@ st.subheader("📋 決算概要")
 try:
     earnings = finnhub_client.company_earnings(ticker, limit=1)[0]
     metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
+    st.json(earnings)  # ← earningsオブジェクトの中身を可視化（デバッグ用）
 
     # EPS & Revenue
     eps_actual = earnings.get("actual", 0)
