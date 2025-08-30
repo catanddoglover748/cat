@@ -115,6 +115,12 @@ try:
         # 実売上データ取得（financials_reportedから）
     financials = finnhub_client.financials_reported(symbol=ticker, freq='quarterly')
     report_data = financials["data"] if isinstance(financials, dict) and "data" in financials else []
+    # 122行目の直後にこのチェックを追加：
+    if isinstance(earnings_list, list) and len(earnings_list) > 0 and isinstance(earnings_list[0], dict):
+        earnings = earnings_list[0]
+    else:
+    st.warning("earnings データが dict 形式ではありません")
+    earnings = {}
 
     rev_actual = 0
     if report_data:
