@@ -115,12 +115,11 @@ with col2:
 st.markdown("---")
 st.subheader("📋 決算概要")
 
-# ========= ⏬ APIから決算データ取得（自動換算対応） =========
-# 売上は B(十億USD) で統一表示
+# ========= ⏬ 決算データ（自動換算・堅牢版） =========
 def safe_pct(numer, denom):
     try:
-        if denom and denom != 0:
-            return round((numer - denom) / denom * 100, 2)
+        if denom and float(denom) != 0:
+            return round((float(numer) - float(denom)) / float(denom) * 100, 2)
     except Exception:
         pass
     return 0.0
@@ -131,122 +130,95 @@ def to_billions(v):
     except Exception:
         return 0.0
 
-eps_actual = eps_est = 0.0
-rev_actual_B = rev_est_B = 0.0
-eps_diff_pct = rev_diff_pct = 0.0
+def get_shares_outstanding(metrics: dict, ticker: str) -> float:
+    return (
+        metrics.get("sharesOutstanding")
+        or metrics.get("shareOutstanding")   # ← Finnhubではこちらが入ることが多い
+        or yf.Ticker(ticker).info.get("sharesOutstanding")
+        or 0.0
+    )
+
+# 初期値
+eps_actual = 0.0
+eps_est_val = 0.0
+eps_diff_pct = 0.0
+rev_actual_B = 0.0
+rev_est_B = 0.0
+rev_diff_pct = 0.0
 next_eps_est = "TBD"
-next_rev_B = next_rev_diff_pct = 0.0
+next_rev_B = 0.0
+next_rev_diff_pct = 0.0
 annual_eps = "TBD"
 annual_rev_B = "TBD"
 
 try:
-    # 基本メトリクス
-bf = finnhub_client.company_basic_financials(ticker, "all")
-metrics = bf["metric"] if isinstance(bf, dict) and "metric" in bf else {}
+    # 1) EPS（実績・予想）
+    earnings_list = finnhub_client.company_earnings(ticker, limit=1)
+    if isinstance(earnings_list, list) and earnings_list and isinstance(earnings_list[0], dict):
+        e0 = earnings_list[0]
+        eps_actual = float(e0.get("actual") or 0.0)
+        eps_est_val = float(e0.get("estimate") or 0.0)
+        eps_diff_pct = safe_pct(eps_actual, eps_est_val)
 
-# 発行株数（キー揺れに対応）
-shares_outstanding = (
-    metrics.get("sharesOutstanding")        # 一部環境
-    or metrics.get("shareOutstanding")      # Finnhub標準でこちらが入ることが多い
-    or yf.Ticker(ticker).info.get("sharesOutstanding")  # 最後の保険
-    or 0
-)
+    # 2) 基本メトリクス
+    bf = finnhub_client.company_basic_financials(ticker, "all")
+    metrics = bf["metric"] if isinstance(bf, dict) and "metric" in bf else {}
+    shares_outstanding = get_shares_outstanding(metrics, ticker)
 
-    
-except Exception as e:
-    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
-try:   
-    # 実売上（financials_reported）— dict/list 両対応
-financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
+    # 3) 実売上（financials_reported）— dict/list 両対応
+    fin = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
+    report_data = fin.get("data", []) if isinstance(fin, dict) else (fin if isinstance(fin, list) else [])
+    if report_data and isinstance(report_data[0], dict):
+        ic = (report_data[0].get("report") or {}).get("ic") or {}
+        rev_raw = (
+            ic.get("Revenue")
+            or ic.get("TotalRevenue")
+            or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
+        )
+        if rev_raw is not None:
+            rev_actual_B = to_billions(rev_raw)
 
-# report_data を安全に取り出す
-if isinstance(financials, dict):
-    report_data = financials.get("data", [])
-elif isinstance(financials, list):
-    report_data = financials
-else:
-    report_data = []
+    # 4) 予想/TTM売上（RPS × 発行株数、無ければ代替）
+    rps_candidates = [
+        metrics.get("revenuePerShareForecast"),
+        metrics.get("revenuePerShare"),
+        metrics.get("revenuePerShareTTM"),
+    ]
+    rev_total = metrics.get("revenueTTM") or metrics.get("revenueAnnual")
+    if rev_total and shares_outstanding:
+        # RPSが無い銘柄向けのフォールバック
+        try:
+            rps_candidates.append(float(rev_total) / float(shares_outstanding))
+        except Exception:
+            pass
 
-rev_actual_B = 0.0
-if report_data:
-    # 1件目を取り出し、さらに中身が dict か確認
-    first = report_data[0]
-    if isinstance(first, dict):
-        # 形：{..., "report": {"ic": {...}}} にまず対応
-        report = first.get("report")
-        if isinstance(report, dict):
-            ic = report.get("ic")
-            if isinstance(ic, dict):
-                rev_raw = (
-                    ic.get("Revenue")
-                    or ic.get("TotalRevenue")
-                    or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
-                )
-                if isinstance(rev_raw, (int, float, str)):
-                    try:
-                        rev_actual_B = float(rev_raw) / 1e9
-                    except Exception:
-                        rev_actual_B = 0.0
-        # 万一、ネストが違う（first 自体が ic を持つ等）ケースのフォールバック
-        if rev_actual_B == 0.0:
-            ic2 = first.get("ic") if isinstance(first, dict) else None
-            if isinstance(ic2, dict):
-                rev_raw = ic2.get("Revenue") or ic2.get("TotalRevenue")
-                if isinstance(rev_raw, (int, float, str)):
-                    try:
-                        rev_actual_B = float(rev_raw) / 1e9
-                    except Exception:
-                        pass
-
-except Exception as e:
-    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
-
-    # 予想売上（自動換算）
-    # 優先順: revenuePerShareForecast > revenuePerShare > revenuePerShareTTM
-    rps_fore = metrics.get("revenuePerShareForecast")
-    rps = metrics.get("revenuePerShare")
-    rps_ttm = metrics.get("revenuePerShareTTM")
-
-    rps_used = None
-    for cand in (rps_fore, rps, rps_ttm):
-        if isinstance(cand, (int, float)) and cand > 0:
-            rps_used = cand
-            break
-
+    rps_used = next((x for x in rps_candidates if isinstance(x, (int, float)) and x > 0), None)
     if rps_used and shares_outstanding:
-        rev_est_B = (rps_used * shares_outstanding) / 1e9
+        rev_est_B = (float(rps_used) * float(shares_outstanding)) / 1e9
 
-    # EPS 実績/予想
-    eps_actual = float(earnings.get("actual", 0) or 0)
-    eps_est = float(earnings.get("estimate", 0) or 0)
-    eps_diff_pct = safe_pct(eps_actual, eps_est)
-
-    # 次回予想 EPS / 売上
-    # Finnhubのキー名はアカウント/銘柄で異なることがあるため複数候補を参照
+    # 次期予想
     next_eps_est = (
         metrics.get("nextEarningsPerShare")
         or metrics.get("epsNextQuarter")
+        or metrics.get("epsEstimateNextQuarter")
         or "TBD"
     )
-
     rps_next = metrics.get("revenuePerShareForecast")
     if rps_next and shares_outstanding:
-        next_rev_B = (rps_next * shares_outstanding) / 1e9
-        next_rev_diff_pct = safe_pct(next_rev_B, rev_actual_B)
+        next_rev_B = (float(rps_next) * float(shares_outstanding)) / 1e9
 
-    # 年間予想/TTM（売上は B 換算）
+    # 乖離率
+    rev_diff_pct = safe_pct(rev_actual_B, rev_est_B)
+    next_rev_diff_pct = safe_pct(next_rev_B, rev_actual_B) if rev_actual_B else 0.0
+
+    # 年間
     annual_eps = (
         metrics.get("epsInclExtraItemsAnnual")
         or metrics.get("epsInclExtraItemsTTM")
         or "TBD"
     )
-    if rps_ttm and shares_outstanding:
-        annual_rev_B = round((rps_ttm * shares_outstanding) / 1e9, 2)
-    else:
-        annual_rev_B = "TBD"
-
-    # 乖離率
-    rev_diff_pct = safe_pct(rev_actual_B, rev_est_B)
+    if metrics.get("revenuePerShareTTM") and shares_outstanding:
+        annual_rev_B = round((float(metrics["revenuePerShareTTM"]) * float(shares_outstanding)) / 1e9, 2)
 
 except Exception as e:
     st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
