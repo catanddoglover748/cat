@@ -101,35 +101,57 @@ with col2:
             st.warning("⚠️ データが取得できませんでした。")
     except Exception as e:
         st.error(f"エラーが発生しました: {e}")
-        # ------------------------------------------
+# ------------------------------------------
 # 📊 決算サマリー表示（チャートの下）
 # ------------------------------------------
+
 st.markdown("---")
 st.subheader("📋 決算概要")
-# 仮のデータ（画像を参考に） 
-eps_actual = 1.04 
-eps_est = 1.01 
-eps_diff = round((eps_actual - eps_est) / eps_est * 100, 
-2) rev_actual = 46.74 
-rev_est = 46.13 
-rev_diff = round((rev_actual - rev_est) / rev_est * 100, 
-2) next_eps_est = 1.19 
-next_rev_est = 52.76 
-next_rev = 54.00 
-next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2)
-# 2列構成で表示
+
+# ======== 🔽🔽 APIから決算データ取得 🔽🔽 ========
+try:
+    earnings = finnhub_client.earnings(ticker, limit=1)[0]
+    metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
+
+    # EPS & Revenue
+    eps_actual = earnings.get("actual", 0)
+    eps_est = earnings.get("estimate", 0)
+    eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
+
+    rev_actual = earnings.get("revenue", 0) / 1e9
+    rev_est = earnings.get("revenueEstimate", 0) / 1e9
+    rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
+
+    # Next Qtr EPS/Revenue
+    next_eps_est = metrics.get("nextEarningsPerShare", "TBD")
+    next_rev_est = metrics.get("revenuePerShareForecast", 0)
+    next_rev = next_rev_est * 1.0235 if next_rev_est else 0
+    next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2) if next_rev_est else 0
+
+    # 年間予想
+    annual_eps = metrics.get("epsInclExtraItemsAnnual", "TBD")
+    annual_rev = metrics.get("revenuePerShareTTM", "TBD")
+
+except Exception as e:
+    st.warning(f"⚠️ 決算データの取得に失敗しました: {e}")
+    eps_actual, eps_est, eps_diff = 0, 0, 0
+    rev_actual, rev_est, rev_diff = 0, 0, 0
+    next_eps_est, next_rev, next_rev_diff = "TBD", 0, 0
+    annual_eps, annual_rev = "TBD", "TBD"
+# ======== 🔼🔼 ここまで自動取得 🔼🔼 ========
+
+# ==== 表示 ====
 col_a, col_b = st.columns(2)
 
 with col_a:
     st.metric("EPS", f"{eps_actual}", f"{eps_diff:+.2f}%", delta_color="normal")
     st.metric("Next Qtr EPS (Est.)", f"{next_eps_est}")
-    st.metric("Annual EPS (Est.)", "4.37")
+    st.metric("Annual EPS (Est.)", f"{annual_eps}")
 
 with col_b:
-    st.metric("Revenue (B)", f"{rev_actual}B", f"{rev_diff:+.2f}%", delta_color="normal")
-    st.metric("Next Qtr Revenue", f"{next_rev}B", f"{next_rev_diff:+.2f}%")
-    st.metric("Annual Revenue (Est.)", "203.4B")
-
+    st.metric("Revenue (B)", f"{rev_actual:.2f}B", f"{rev_diff:+.2f}%", delta_color="normal")
+    st.metric("Next Qtr Revenue", f"{next_rev:.2f}B", f"{next_rev_diff:+.2f}%")
+    st.metric("Annual Revenue (Est.)", f"{annual_rev}B")
 # ターゲット価格のグラフ（Plotly棒グラフ）
 import plotly.express as px
 import pandas as pd
