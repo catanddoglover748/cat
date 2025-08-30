@@ -108,7 +108,7 @@ with col2:
 st.markdown("---")
 st.subheader("📋 決算概要")
 
-# ========= ⏬ APIから決算データ取得（修正済） =========
+# ========= ⏬ APIから決算データ取得（修正済・自動換算対応） =========
 try:
     # earnings_list を明示的に定義
     earnings_list = finnhub_client.company_earnings(ticker, limit=1)
@@ -127,17 +127,23 @@ try:
 
     # 実売上値（B単位）を取得
     rev_actual = 0
-    if report_data:
-        latest_report = report_data[0]
-        rev_actual_str = latest_report.get("report", {}).get("ic", {}).get("Revenue", None)
-        rev_actual = float(rev_actual_str) / 1e9 if rev_actual_str else 0
+    try:
+        if report_data and isinstance(report_data[0], dict):
+            latest_report = report_data[0]
+            rev_actual_str = latest_report.get("report", {}).get("ic", {}).get("Revenue", None)
+            if rev_actual_str:
+                rev_actual = float(rev_actual_str) / 1e9
+    except Exception as e:
+        st.warning(f"売上実績データ取得時のエラー: {e}")
+        rev_actual = 0
 
     # earnings の内容をデバッグ表示（必要に応じて削除OK）
     st.json(earnings)
 
-    # 売上予想（1株あたり → 全体換算）
+    # 予想売上（1株あたり → 全体換算）【自動化】
+    shares_outstanding = metrics.get("sharesOutstanding", 0)
     rev_est_raw = metrics.get("revenuePerShare", 0)
-    rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 換算係数は必要に応じて修正
+    rev_est = rev_est_raw * shares_outstanding / 1e9 if rev_est_raw and shares_outstanding else 0
     rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
 
     # EPS（実績・予想・差分）
@@ -145,11 +151,15 @@ try:
     eps_est = earnings.get("estimate", 0)
     eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
 
-    # 次回予想EPS・売上
+    # 次回予想EPS・売上【自動化】
     next_eps_est = metrics.get("nextEarningsPerShare", "TBD")
-    next_rev_est = metrics.get("revenuePerShareForecast", 0)
-    next_rev = next_rev_est * 1.0235 if next_rev_est else 0
-    next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2) if next_rev_est else 0
+
+    next_rev_est_raw = metrics.get("revenuePerShareForecast", 0)
+    next_rev = next_rev_est_raw * shares_outstanding / 1e9 if next_rev_est_raw and shares_outstanding else 0
+    next_rev_diff = round((next_rev - rev_actual) / rev_actual * 100, 2) if rev_actual else 0
+
+except Exception as e:
+    st.warning(f"決算データの取得で例外が発生しました: {e}")
 
     # 年間予想
     annual_eps = metrics.get("epsInclExtraItemsAnnual", "TBD")
