@@ -140,15 +140,19 @@ annual_eps = "TBD"
 annual_rev_B = "TBD"
 
 try:
-    # 直近決算（company_earnings）
-    earnings_list = finnhub_client.company_earnings(ticker, limit=1)
-    earnings = earnings_list[0] if isinstance(earnings_list, list) and earnings_list else {}
-
     # 基本メトリクス
-    bf = finnhub_client.company_basic_financials(ticker, "all")
-    metrics = bf.get("metric", {}) if isinstance(bf, dict) else {}
+bf = finnhub_client.company_basic_financials(ticker, "all")
+metrics = bf["metric"] if isinstance(bf, dict) and "metric" in bf else {}
 
-    shares_outstanding = metrics.get("sharesOutstanding", 0) or 0
+# 発行株数（キー揺れに対応）
+shares_outstanding = (
+    metrics.get("sharesOutstanding")        # 一部環境
+    or metrics.get("shareOutstanding")      # Finnhub標準でこちらが入ることが多い
+    or yf.Ticker(ticker).info.get("sharesOutstanding")  # 最後の保険
+    or 0
+)
+
+    
 except Exception as e:
     st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
 try:   
