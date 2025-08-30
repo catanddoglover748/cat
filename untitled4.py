@@ -106,27 +106,17 @@ with col2:
 # ------------------------------------------
 st.markdown("---")
 st.subheader("📋 決算概要")
-
-# Finnhub APIから決算データ取得
-earnings = finnhub_client.earnings(selected_ticker, limit=1)[0]  # 直近1件
-metrics = finnhub_client.company_basic_financials(selected_ticker, 'all')["metric"]
-
-# EPSとRevenueの実績と予想
-eps_actual = earnings.get("actual", 0)
-eps_est = earnings.get("estimate", 0)
-eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
-
-rev_actual = earnings.get("revenue", 0) / 1e9  # 単位B（Billion）
-rev_est = earnings.get("revenueEstimate", 0) / 1e9
-rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
-
-# 次四半期予想（metricsから）
-next_eps_est = metrics.get("nextEarningsPerShare", "TBD")
-next_rev_est = metrics.get("revenuePerShareForecast", 0)
-next_rev = next_rev_est * 1.0235  # 仮に+2.35%の成長と想定（←ここは更新可能）
-
-next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2) if next_rev_est else 0
-
+# 仮のデータ（画像を参考に） 
+eps_actual = 1.04 
+eps_est = 1.01 
+eps_diff = round((eps_actual - eps_est) / eps_est * 100, 
+2) rev_actual = 46.74 
+rev_est = 46.13 
+rev_diff = round((rev_actual - rev_est) / rev_est * 100, 
+2) next_eps_est = 1.19 
+next_rev_est = 52.76 
+next_rev = 54.00 
+next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2)
 # 2列構成で表示
 col_a, col_b = st.columns(2)
 
