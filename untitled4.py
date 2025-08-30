@@ -10,9 +10,17 @@ st.title(" 株価チャート＆ローソク足ビューア")
 # ティッカー入力と期間指定
 # ウォッチリストを左に一覧表示する
 ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+# タブ作成（TradingView風）
+tabs = st.tabs(ticker_list)
+
+# 各タブごとにティッカーに応じて表示
+for i, tab in enumerate(tabs):
+    with tab:
+        ticker = ticker_list[i]
+        st.header(f"📈 {ticker} チャート")
 # セッションステート初期化
-if "selected_ticker" not in st.session_state:
-    st.session_state.selected_ticker = ticker_list[0]
+#if "selected_ticker" not in st.session_state:
+  #  st.session_state.selected_ticker = ticker_list[0]
 
 # 画面を左・右に分割（左: ティッカーボタン、右: チャートや詳細）
 col1, col2 = st.columns([1, 3])
