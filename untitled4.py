@@ -11,7 +11,10 @@ from datetime import datetime, timedelta
 # =============================
 # 2. Finnhub APIクライアントの初期化（インポートのすぐ下）
 # =============================
-finnhub_client = finnhub.Client(api_key="YOUR_API_KEY")
+
+# Secrets からAPIキーを取得して Finnhubクライアントを初期化
+api_key = st.secrets["FINNHUB_API_KEY"]
+finnhub_client = finnhub.Client(api_key=api_key)
 
 # ----------------------------
 # 📌 1. ページタイトル
