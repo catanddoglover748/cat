@@ -150,28 +150,47 @@ try:
 
     shares_outstanding = metrics.get("sharesOutstanding", 0) or 0
 
-    # 実売上（financials_reported）
-    financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
+    # 実売上（financials_reported）— dict/list 両対応
+financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
 
-    # ← dictでもlistでもOKにする
-    if isinstance(financials, dict):
-        report_data = financials.get("data", [])
-    elif isinstance(financials, list):
-        report_data = financials
-    else:
-        report_data = []
+# report_data を安全に取り出す
+if isinstance(financials, dict):
+    report_data = financials.get("data", [])
+elif isinstance(financials, list):
+    report_data = financials
+else:
+    report_data = []
 
-    rev_actual_B = 0.0
-    if report_data and isinstance(report_data[0], dict):
-        latest = report_data[0]
-        report = latest.get("report") or {}
-        ic = report.get("ic") or {}
-        rev_raw = (
-            ic.get("Revenue")
-            or ic.get("TotalRevenue")
-            or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
-    )
-    rev_actual_B = float(rev_raw) / 1e9 if rev_raw else 0.0
+rev_actual_B = 0.0
+if report_data:
+    # 1件目を取り出し、さらに中身が dict か確認
+    first = report_data[0]
+    if isinstance(first, dict):
+        # 形：{..., "report": {"ic": {...}}} にまず対応
+        report = first.get("report")
+        if isinstance(report, dict):
+            ic = report.get("ic")
+            if isinstance(ic, dict):
+                rev_raw = (
+                    ic.get("Revenue")
+                    or ic.get("TotalRevenue")
+                    or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
+                )
+                if isinstance(rev_raw, (int, float, str)):
+                    try:
+                        rev_actual_B = float(rev_raw) / 1e9
+                    except Exception:
+                        rev_actual_B = 0.0
+        # 万一、ネストが違う（first 自体が ic を持つ等）ケースのフォールバック
+        if rev_actual_B == 0.0:
+            ic2 = first.get("ic") if isinstance(first, dict) else None
+            if isinstance(ic2, dict):
+                rev_raw = ic2.get("Revenue") or ic2.get("TotalRevenue")
+                if isinstance(rev_raw, (int, float, str)):
+                    try:
+                        rev_actual_B = float(rev_raw) / 1e9
+                    except Exception:
+                        pass
 
 
     # 予想売上（自動換算）
