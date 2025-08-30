@@ -223,18 +223,6 @@ try:
 except Exception as e:
     st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
 
-# ==== 表示 ====
-col_a, col_b = st.columns(2)
-
-with col_a:
-    st.metric("EPS (Actual)", f"{eps_actual}", f"{eps_diff_pct:+.2f}%")
-    st.metric("Next Qtr EPS (Est.)", f"{next_eps_est}")
-    st.metric("Annual EPS (Est.)", f"{annual_eps}")
-
-with col_b:
-    st.metric("Revenue (B, Actual)", f"{rev_actual_B:.2f}B", f"{rev_diff_pct:+.2f}%")
-    st.metric("Next Qtr Revenue (Est.)", f"{next_rev_B:.2f}B", f"{next_rev_diff_pct:+.2f}%")
-    st.metric("Annual Revenue (TTM, Est.)", f"{annual_rev_B}")
 
 # ------------------------------------------
 # 🎯 ターゲット価格のサンプル（必要ならAPI接続に差し替え）
