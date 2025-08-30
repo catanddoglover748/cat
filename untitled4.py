@@ -150,15 +150,29 @@ try:
 
     shares_outstanding = metrics.get("sharesOutstanding", 0) or 0
 
-    # 実売上（financials_reported）
-    # 構造: financials["data"][0]["report"]["ic"]["Revenue"]
-    financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
-    report_data = financials.get("data", []) if isinstance(financials, dict) else []
-    if report_data and isinstance(report_data[0], dict):
-        report = report_data[0].get("report", {})
-        ic = report.get("ic", {}) if isinstance(report, dict) else {}
-        rev_actual_raw = ic.get("Revenue")  # 単位: USD
-        rev_actual_B = to_billions(rev_actual_raw)
+# 実売上（financials_reported）
+financials = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
+
+# ← dictでもlistでもOKにする
+if isinstance(financials, dict):
+    report_data = financials.get("data", [])
+elif isinstance(financials, list):
+    report_data = financials
+else:
+    report_data = []
+
+rev_actual_B = 0.0
+if report_data and isinstance(report_data[0], dict):
+    latest = report_data[0]
+    report = latest.get("report") or {}
+    ic = report.get("ic") or {}
+    rev_raw = (
+        ic.get("Revenue")
+        or ic.get("TotalRevenue")
+        or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
+    )
+    rev_actual_B = float(rev_raw) / 1e9 if rev_raw else 0.0
+
 
     # 予想売上（自動換算）
     # 優先順: revenuePerShareForecast > revenuePerShare > revenuePerShareTTM
