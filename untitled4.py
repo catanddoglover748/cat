@@ -110,38 +110,57 @@ st.subheader("📋 決算概要")
 
 # ========= ⏬ APIから決算データ取得（修正済） =========
 try:
-    earnings = finnhub_client.company_earnings(ticker, limit=1)[0]
+    # earnings_list を明示的に定義
+    earnings_list = finnhub_client.company_earnings(ticker, limit=1)
     metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
-        # 実売上データ取得（financials_reportedから）
+
+    # 実売上データ取得（financials_reportedから）
     financials = finnhub_client.financials_reported(symbol=ticker, freq='quarterly')
     report_data = financials["data"] if isinstance(financials, dict) and "data" in financials else []
-    # 122行目の直後にこのチェックを追加：
+
+    # earnings_list の構造チェックと代入
     if isinstance(earnings_list, list) and len(earnings_list) > 0 and isinstance(earnings_list[0], dict):
         earnings = earnings_list[0]
     else:
         st.warning("earnings データが dict 形式ではありません")
         earnings = {}
 
+    # 実売上値（B単位）を取得
     rev_actual = 0
     if report_data:
         latest_report = report_data[0]
         rev_actual_str = latest_report.get("report", {}).get("ic", {}).get("Revenue", None)
-
         rev_actual = float(rev_actual_str) / 1e9 if rev_actual_str else 0
 
-    st.json(earnings)  # ← earningsオブジェクトの中身を可視化（デバッグ用）
-    
-        # 予想売上も metrics から取得（年間でなく四半期ベース）
+    # earnings の内容をデバッグ表示（必要に応じて削除OK）
+    st.json(earnings)
+
+    # 売上予想（1株あたり → 全体換算）
     rev_est_raw = metrics.get("revenuePerShare", 0)
-    next_rev_est = metrics.get("revenuePerShareForecast", 0)
-    rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 1株あたり→全体へ換算
+    rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 換算係数は必要に応じて修正
     rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
-    if not isinstance(earnings, dict):
-        st.warning("earnings が dict ではありません")
-        earnings = {}
+
+    # EPS（実績・予想・差分）
     eps_actual = earnings.get("actual", 0)
     eps_est = earnings.get("estimate", 0)
     eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
+
+    # 次回予想EPS・売上
+    next_eps_est = metrics.get("nextEarningsPerShare", "TBD")
+    next_rev_est = metrics.get("revenuePerShareForecast", 0)
+    next_rev = next_rev_est * 1.0235 if next_rev_est else 0
+    next_rev_diff = round((next_rev - next_rev_est) / next_rev_est * 100, 2) if next_rev_est else 0
+
+    # 年間予想
+    annual_eps = metrics.get("epsInclExtraItemsAnnual", "TBD")
+    annual_rev = metrics.get("revenuePerShareTTM", "TBD")
+
+except Exception as e:
+    st.warning(f"⚠️ 決算データの取得に失敗しました: {e}")
+    eps_actual, eps_est, eps_diff = 0, 0, 0
+    rev_actual, rev_est, rev_diff = 0, 0, 0
+    next_eps_est, next_rev, next_rev_diff = "TBD", 0, 0
+    annual_eps, annual_rev = "TBD", "TBD"
 
 
 
