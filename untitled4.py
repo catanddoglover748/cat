@@ -130,8 +130,8 @@ try:
     rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 1株あたり→全体へ換算
     rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
     if not isinstance(earnings, dict):
-    st.warning("earnings が dict ではありません")
-    earnings = {}
+        st.warning("earnings が dict ではありません")
+        earnings = {}
     eps_actual = earnings.get("actual", 0)
     eps_est = earnings.get("estimate", 0)
     eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
