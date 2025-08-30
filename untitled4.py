@@ -241,10 +241,10 @@ try:
         annual_rev_B = round((float(metrics["revenuePerShareTTM"]) * float(shares_outstanding)) / 1e9, 2)
 
 except Exception as e:
-    st.error(traceback.format_exc())
-
-#except Exception as e:
-#    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
+    # 内部ログ（開発者用）
+    print(traceback.format_exc())
+    # ユーザーには簡潔に通知
+    st.warning(f"⚠️ 決算データの取得でエラー: {e}")
 
 
 # ------------------------------------------
