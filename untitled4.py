@@ -129,6 +129,10 @@ try:
     next_rev_est = metrics.get("revenuePerShareForecast", 0)
     rev_est = rev_est_raw * 1.0235 if rev_est_raw else 0  # 1株あたり→全体へ換算
     rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
+    if not isinstance(earnings, dict):
+    st.warning("earnings が dict ではありません")
+    earnings = {}
+
 
 
     # EPS & Revenue
