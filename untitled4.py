@@ -249,6 +249,161 @@ fig_price.update_layout(
 )
 st.plotly_chart(fig_price, use_container_width=True)
 
+# =============================
+# 🎨 ダークカードUI（画像の雰囲気に寄せる）
+# 既存の指標変数(eps_actual, eps_est, rev_actual_B, next_rev_B など)をそのまま利用
+# =============================
+
+# --- 1) CSS（角丸・影・ダークテーマ） ---
+st.markdown("""
+<style>
+:root{
+  --bg:#0e1117; --card:#1a1f2e; --soft:#22293a; --text:#e6e6ea; --muted:#a7b0c0;
+  --good:#28d17c; --warn:#f5a524; --bad:#ff4d4f; --chip:#2b3246; --line:#33405c;
+}
+.block-container{padding-top:1.0rem;}
+.card{background:var(--card); border:1px solid #2a3246; border-radius:18px; padding:16px 18px;
+      box-shadow:0 8px 30px rgba(0,0,0,.25); color:var(--text); }
+.card h3, .card h4, .card h5{margin:0 0 .3rem 0;}
+.kv{display:flex; gap:14px; flex-wrap:wrap; margin:.25rem 0 .6rem;}
+.kv .chip{background:var(--chip); border:1px solid #38425f; color:var(--muted);
+          padding:6px 10px; border-radius:999px; font-size:.82rem;}
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.pill{display:flex; align-items:center; gap:12px; background:var(--soft); border:1px solid #2d3650;
+     border-radius:16px; padding:14px;}
+.pill .dot{width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+           font-weight:700; color:#0b0e14;}
+.pill .lhs{flex:1;}
+.pill .lhs .title{color:var(--muted); font-size:.85rem; margin-bottom:2px;}
+.pill .lhs .est{color:var(--muted); font-size:.78rem;}
+.delta{font-size:.85rem; font-weight:600;}
+.good{color:var(--good);} .bad{color:var(--bad);} .muted{color:var(--muted);}
+.header{display:flex; gap:14px; align-items:center;}
+.logo{width:42px; height:42px; border-radius:10px; background:#0b0e14; display:flex; align-items:center; justify-content:center;}
+.title-wrap{display:flex; flex-direction:column}
+.title-top{font-size:1.1rem; font-weight:700;}
+.subtitle{font-size:.9rem; color:var(--muted);}
+.section-title{margin:.6rem 0 .3rem; color:var(--muted); font-weight:600; letter-spacing:.02em;}
+</style>
+""", unsafe_allow_html=True)
+
+# --- 2) ヘッダー（銘柄名・ティッカー・クォーター） ---
+company = yf.Ticker(ticker).info.get("shortName", ticker)
+quarter_label = f"${ticker} Q2 2026"  # 必要に応じて動的に
+market_cap = yf.Ticker(ticker).info.get("marketCap", None)
+def human(n):  # 時価総額の簡易整形
+    try:
+        if n is None: return "N/A"
+        for unit in ["","K","M","B","T","Q"]:
+            if abs(n) < 1000.0: return f"{n:,.2f}{unit}"
+            n/=1000.0
+    except: return "N/A"
+
+pe = yf.Ticker(ticker).info.get("trailingPE", None)
+fpe = yf.Ticker(ticker).info.get("forwardPE", None)
+peg = yf.Ticker(ticker).info.get("pegRatio", None)
+
+st.markdown(f"""
+<div class="card">
+  <div class="header">
+    <div class="logo">🟢</div>
+    <div class="title-wrap">
+      <div class="title-top">{company}</div>
+      <div class="subtitle">{quarter_label}</div>
+    </div>
+  </div>
+  <div class="kv">
+    <span class="chip">Market Cap: <b>{human(market_cap)}</b></span>
+    <span class="chip">P/E: <b>{f"{pe:.2f}" if isinstance(pe,(int,float)) else "N/A"}</b></span>
+    <span class="chip">Forward P/E: <b>{f"{fpe:.2f}" if isinstance(fpe,(int,float)) else "N/A"}</b></span>
+    <span class="chip">PEG: <b>{f"{peg:.2f}" if isinstance(peg,(int,float)) else "N/A"}</b></span>
+  </div>
+""", unsafe_allow_html=True)
+
+# --- 3) ピル型メトリクス（左：EPS系 / 右：Revenue系） ---
+def pill_html(label, value, est=None, delta=None, good=True):
+    color = "var(--good)" if good else "var(--bad)"
+    dot_bg = "#28d17c" if good else "#ff4d4f"
+    delta_html = f'<span class="delta {"good" if good else "bad"}">{delta}</span>' if delta else '<span class="delta muted">N/A</span>'
+    est_html = f'<div class="est">Est. {est}</div>' if est is not None else ""
+    return f"""
+    <div class="pill">
+      <div class="dot" style="background:{dot_bg}">{value}</div>
+      <div class="lhs">
+        <div class="title">{label}</div>
+        {est_html}
+      </div>
+      {delta_html}
+    </div>
+    """
+
+eps_est = earnings.get("estimate", "N/A")
+rev_est_B_disp = f"{rev_est_B:.2f}B" if rev_est_B else "N/A"
+next_eps_est_disp = f"{next_eps_est}" if next_eps_est!="TBD" else "TBD"
+next_rev_est_disp = f"{next_rev_B:.0f}B" if next_rev_B else "N/A"
+
+grid_html = f"""
+  <div class="grid">
+    {pill_html("EPS", f"{eps_actual:.2f}" if isinstance(eps_actual,(int,float)) else "TBD",
+               est=f"{eps_est}", delta=f"{eps_diff_pct:+.2f}%", good=(eps_diff_pct>=0))}
+    {pill_html("Revenue", f"{rev_actual_B:.2f}B", est=f"{rev_est_B_disp}",
+               delta=f"{rev_diff_pct:+.2f}%", good=(rev_diff_pct>=0))}
+    {pill_html("Next Qtr EPS", f"{next_eps_est_disp}", est="1.19", delta=None, good=True)}
+    {pill_html("Next Qtr Rev", f"{next_rev_est_disp}", est="52.76B",
+               delta=f"{next_rev_diff_pct:+.2f}%", good=(next_rev_diff_pct>=0))}
+  </div>
+"""
+st.markdown(grid_html, unsafe_allow_html=True)
+
+# --- 4) 横棒ターゲット（Before/After/Analyst/AI） ---
+# 既存price_dataを活用し、見た目を調整
+min_x = min(price_data["Price"]) - 15
+max_x = max(price_data["Price"]) + 40
+
+fig_ui = px.bar(
+    price_data, x="Price", y="Label", orientation="h", text=price_data["Price"].map(lambda v: f"${v:,.2f}"),
+    color="Label",
+    color_discrete_map={
+        "Before":"#7bb1ff", "After":"#2fb27a", "Analyst Target":"#f5a524", "AI Target":"#ff6161"
+    }
+)
+fig_ui.update_traces(textposition="inside", insidetextanchor="middle")
+# 注釈ライン：$90 と $200（例）
+fig_ui.add_shape(type="line", x0=90, x1=90, y0=-0.5, y1=3.5, line=dict(dash="dot", width=1, color="#d6a000"))
+fig_ui.add_annotation(x=90, y=3.35, text="$90", showarrow=False, font=dict(size=11, color="#d6a000"))
+fig_ui.add_shape(type="line", x0=200, x1=200, y0=-0.5, y1=3.5, line=dict(dash="dot", width=1, color="#ffae00"))
+fig_ui.add_annotation(x=200, y=3.35, text="$200", showarrow=False, font=dict(size=11, color="#ffae00"))
+
+# 右端に%差の注釈（After/AIのみ例示）
+before = float(price_data.loc[price_data["Label"]=="Before","Price"])
+after  = float(price_data.loc[price_data["Label"]=="After","Price"])
+ai     = float(price_data.loc[price_data["Label"]=="AI Target","Price"])
+fig_ui.add_annotation(x=after, y=1, text=f"{(after-before)/before*100:+.2f}%", showarrow=False, xshift=28, font=dict(size=11, color="#2fb27a"))
+fig_ui.add_annotation(x=ai, y=3, text=f"{(ai-before)/before*100:+.2f}%",   showarrow=False, xshift=28, font=dict(size=11, color="#ff6161"))
+
+fig_ui.update_layout(
+    title="Stock & Target Prices",
+    xaxis_title="", yaxis_title="",
+    xaxis=dict(range=[min_x, max_x], gridcolor="#22304b", zeroline=False),
+    yaxis=dict(showgrid=False),
+    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)", height=370,
+    margin=dict(l=10, r=10, t=50, b=20),
+)
+st.plotly_chart(fig_ui, use_container_width=True)
+
+# --- 5) AI Rating 行 ---
+st.markdown("""
+<div class="section-title">AI Rating:</div>
+<div class="card" style="display:flex; align-items:center; gap:10px; justify-content:flex-start;">
+  <div>📊</div><div class="muted">Coming soon</div>
+</div>
+<p class="muted" style="margin-top:.4rem;">
+  <em>*Earnings report released on 2025-08-27. Informational purposes only. Consult with a professional and conduct sufficient research before making investment decisions.*</em>
+</p>
+</div>  <!-- 最初の .card を閉じる -->
+""", unsafe_allow_html=True)
+
+
 # ------------------------------------------
 # 🤖 AI Rating（仮置き）
 # ------------------------------------------
