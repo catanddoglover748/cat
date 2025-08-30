@@ -114,7 +114,8 @@ try:
     metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
         # 実売上データ取得（financials_reportedから）
     financials = finnhub_client.financials_reported(symbol=ticker, freq='quarterly')
-    report_data = financials.get("data", [])
+    report_data = financials["data"] if isinstance(financials, dict) and "data" in financials else []
+
     rev_actual = 0
     if report_data:
         latest_report = report_data[0]
