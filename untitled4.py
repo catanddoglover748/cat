@@ -119,11 +119,11 @@ try:
     eps_est = earnings.get("estimate", 0)
     eps_diff = round((eps_actual - eps_est) / eps_est * 100, 2) if eps_est else 0
 
-    rev_actual_raw = earnings.get("revenue")
-    rev_est_raw = earnings.get("revenueEstimate")
-    rev_actual = rev_actual_raw / 1e9 if rev_actual_raw else 0
-    rev_est = rev_est_raw / 1e9 if rev_est_raw else 0
-    rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
+    #rev_actual_raw = earnings.get("revenue")
+    #rev_est_raw = earnings.get("revenueEstimate")
+    #rev_actual = rev_actual_raw / 1e9 if rev_actual_raw else 0
+    #rev_est = rev_est_raw / 1e9 if rev_est_raw else 0
+    #rev_diff = round((rev_actual - rev_est) / rev_est * 100, 2) if rev_est else 0
 
     # Next Qtr EPS/Revenue
     next_eps_est = metrics.get("nextEarningsPerShare", "TBD")
