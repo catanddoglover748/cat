@@ -7,6 +7,9 @@ import finnhub
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+
+import traceback
+
 from datetime import datetime, timedelta
 
 # =============================
@@ -219,8 +222,7 @@ try:
     )
     if metrics.get("revenuePerShareTTM") and shares_outstanding:
         annual_rev_B = round((float(metrics["revenuePerShareTTM"]) * float(shares_outstanding)) / 1e9, 2)
-import traceback
-...
+
 except Exception as e:
     st.error(traceback.format_exc())
 
