@@ -172,14 +172,31 @@ try:
     fin = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
     report_data = fin.get("data", []) if isinstance(fin, dict) else (fin if isinstance(fin, list) else [])
     if report_data and isinstance(report_data[0], dict):
-        ic = (report_data[0].get("report") or {}).get("ic") or {}
-        rev_raw = (
-            ic.get("Revenue")
-            or ic.get("TotalRevenue")
-            or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
-        )
+        report = report_data[0].get("report") or {}
+        ic = report.get("ic") or {}
+        rev_raw = None
+        if isinstance(ic, dict):
+            # 通常ケース
+            rev_raw = (
+                ic.get("Revenue")
+                or ic.get("TotalRevenue")
+                or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
+            )
+        elif isinstance(ic, list) and len(ic) > 0:
+            # list の場合 → 最初の要素が dict ならそこから取得
+            first_ic = ic[0]
+            if isinstance(first_ic, dict):
+                rev_raw = (
+                    first_ic.get("Revenue")
+                    or first_ic.get("TotalRevenue")
+                    or first_ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
+                )
         if rev_raw is not None:
-            rev_actual_B = to_billions(rev_raw)
+            try:
+                rev_actual_B = float(rev_raw) / 1e9
+            except Exception:
+                rev_actual_B = 0.0
+                #rev_actual_B = to_billions(rev_raw)
 
     # 4) 予想/TTM売上（RPS × 発行株数、無ければ代替）
     rps_candidates = [
