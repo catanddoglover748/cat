@@ -1,6 +1,17 @@
+# =============================
+# 1. 必要なライブラリのインポート（ファイルの先頭）
+# =============================
 import streamlit as st
 import yfinance as yf
+import finnhub  # ← ここに追加
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
+
+# =============================
+# 2. Finnhub APIクライアントの初期化（インポートのすぐ下）
+# =============================
+finnhub_client = finnhub.Client(api_key="YOUR_API_KEY")
 
 # ----------------------------
 # 📌 1. ページタイトル
