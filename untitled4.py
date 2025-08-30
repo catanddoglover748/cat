@@ -119,7 +119,8 @@ try:
     rev_actual = 0
     if report_data:
         latest_report = report_data[0]
-        rev_actual_str = latest_report["report"]["ic"].get("Revenue", None)
+        rev_actual_str = latest_report.get("report", {}).get("ic", {}).get("Revenue", None)
+
         rev_actual = float(rev_actual_str) / 1e9 if rev_actual_str else 0
 
     st.json(earnings)  # ← earningsオブジェクトの中身を可視化（デバッグ用）
