@@ -108,9 +108,9 @@ with col2:
 st.markdown("---")
 st.subheader("📋 決算概要")
 
-# ======== 🔽🔽 APIから決算データ取得 🔽🔽 ========
+# ========= ⏬ APIから決算データ取得（修正済） =========
 try:
-    earnings = finnhub_client.earnings(ticker, limit=1)[0]
+    earnings = finnhub_client.company_earnings(ticker, limit=1)[0]
     metrics = finnhub_client.company_basic_financials(ticker, 'all')["metric"]
 
     # EPS & Revenue
