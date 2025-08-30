@@ -53,7 +53,7 @@ if ticker:
         st.subheader("📈 終値チャート（matplotlib）")
         fig, ax = plt.subplots()
         ax.plot(data_raw.index, data_raw['Close'], label='終値')
-        ax.set_title({st.session_state.selected_ticker} の終値チャート")
+        ax.set_title(f"{ticker}の終値チャート")
         ax.set_xlabel("日付")
         ax.set_ylabel("価格（USD）")
         ax.legend()
