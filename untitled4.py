@@ -119,8 +119,8 @@ try:
     if isinstance(earnings_list, list) and len(earnings_list) > 0 and isinstance(earnings_list[0], dict):
         earnings = earnings_list[0]
     else:
-    st.warning("earnings データが dict 形式ではありません")
-    earnings = {}
+        st.warning("earnings データが dict 形式ではありません")
+        earnings = {}
 
     rev_actual = 0
     if report_data:
