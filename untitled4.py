@@ -219,9 +219,13 @@ try:
     )
     if metrics.get("revenuePerShareTTM") and shares_outstanding:
         annual_rev_B = round((float(metrics["revenuePerShareTTM"]) * float(shares_outstanding)) / 1e9, 2)
-
+import traceback
+...
 except Exception as e:
-    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
+    st.error(traceback.format_exc())
+
+#except Exception as e:
+#    st.warning(f"⚠️ 決算データの取得で例外が発生しました: {e}")
 
 
 # ------------------------------------------
