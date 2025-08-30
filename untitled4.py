@@ -117,6 +117,36 @@ with col2:
 # ------------------------------------------
 st.markdown("---")
 st.subheader("📋 決算概要")
+company = yf.Ticker(ticker).info.get("shortName", ticker)
+pe  = yf.Ticker(ticker).info.get("trailingPE", None)
+fpe = yf.Ticker(ticker).info.get("forwardPE", None)
+peg = yf.Ticker(ticker).info.get("pegRatio", None)
+mcap= yf.Ticker(ticker).info.get("marketCap", None)
+
+def human_mc(n):
+    if not n: return "N/A"
+    for u in ["","K","M","B","T"]: 
+        if abs(n) < 1000: return f"{n:,.2f}{u}"
+        n/=1000
+    return f"{n:,.2f}Q"
+
+st.markdown(f"""
+<div class="card">
+  <div class="header">
+    <div class="logo">🟢</div>
+    <div class="title-wrap">
+      <div class="h1">{company}</div>
+      <div class="sub">${ticker} Latest Earnings</div>
+    </div>
+  </div>
+  <div class="kv">
+    <span class="chip">Market Cap: <b>{human_mc(mcap)}</b></span>
+    <span class="chip">P/E: <b>{f"{pe:.2f}" if isinstance(pe,(int,float)) else "N/A"}</b></span>
+    <span class="chip">Forward P/E: <b>{f"{fpe:.2f}" if isinstance(fpe,(int,float)) else "N/A"}</b></span>
+    <span class="chip">PEG: <b>{f"{peg:.2f}" if isinstance(peg,(int,float)) else "N/A"}</b></span>
+  </div>
+""", unsafe_allow_html=True)
+
 
 # ========= ⏬ 決算データ（自動換算・堅牢版） =========
 def safe_pct(numer, denom):
