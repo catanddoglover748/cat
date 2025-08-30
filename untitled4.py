@@ -350,7 +350,7 @@ def pill_html(label, value, est=None, delta=None, good=True):
     </div>
     """
 
-eps_est = earnings.get("estimate", "N/A")
+eps_est = f"{eps_est_val}" if eps_est_val else "N/A"
 rev_est_B_disp = f"{rev_est_B:.2f}B" if rev_est_B else "N/A"
 next_eps_est_disp = f"{next_eps_est}" if next_eps_est!="TBD" else "TBD"
 next_rev_est_disp = f"{next_rev_B:.0f}B" if next_rev_B else "N/A"
