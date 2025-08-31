@@ -297,27 +297,41 @@ fig_price = px.bar(
 )
 min_x = min(price_data["Price"]) - 15
 max_x = max(price_data["Price"]) + 40
-fig_price.update_traces(text=price_data["Price"].map(lambda v: f"${v:,.2f}"),
-                        textposition="inside", insidetextanchor="middle")
-fig_price.add_shape(type="line", x0=90, x1=90, y0=-0.5, y1=3.5,
-                    line=dict(dash="dot", width=1, color="#f5a524"))
-fig_price.add_annotation(x=90, y=3.35, text="$90", showarrow=False, font=dict(size=11, color="#f5a524"))
+
+fig_price.update_traces(
+    text=price_data["Price"].map(lambda v: f"${v:,.2f}"),
+    textposition="inside",
+    insidetextanchor="middle",
+    marker_line_width=0
+)
+
+# 目標ライン
 fig_price.add_shape(type="line", x0=200, x1=200, y0=-0.5, y1=3.5,
                     line=dict(dash="dot", width=1, color="#ffae00"))
-fig_price.add_annotation(x=200, y=3.35, text="$200", showarrow=False, font=dict(size=11, color="#ffae00"))
+fig_price.add_annotation(x=200, y=3.35, text="$200", showarrow=False,
+                         font=dict(size=11, color="#ffae00"))
+
+# %差注釈（Before基準）
 before = float(price_data.loc[price_data["Label"]=="Before","Price"])
 after  = float(price_data.loc[price_data["Label"]=="After","Price"])
 ai     = float(price_data.loc[price_data["Label"]=="AI Target","Price"])
-fig_price.add_annotation(x=after, y=1, text=f"{(after-before)/before*100:+.2f}%", showarrow=False, xshift=26)
-fig_price.add_annotation(x=ai,   y=3, text=f"{(ai-before)/before*100:+.2f}%",   showarrow=False, xshift=26)
+fig_price.add_annotation(x=after, y=1, text=f"{(after-before)/before*100:+.2f}%",
+                         showarrow=False, xshift=24)
+fig_price.add_annotation(x=ai,   y=3, text=f"{(ai-before)/before*100:+.2f}%",
+                         showarrow=False, xshift=24)
+
 fig_price.update_layout(
     title="Stock & Target Prices",
-    xaxis_title="価格 (USD)", yaxis_title="",
-    xaxis=dict(range=[min_x, max_x], gridcolor="#22304b", zeroline=False),
-    yaxis=dict(showgrid=False),
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    xaxis=dict(range=[min_x, max_x], gridcolor="#22304b", zeroline=False, tickfont=dict(size=12)),
+    yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+    legend=dict(orientation="v", y=1.0, x=1.02, bgcolor="rgba(0,0,0,0)"),
+    bargap=0.22,
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
     height=360, margin=dict(l=10, r=10, t=50, b=20)
 )
+
+# カードで囲む
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.plotly_chart(fig_price, use_container_width=True)
 st.markdown("</div>", unsafe_allow_html=True)
@@ -367,6 +381,7 @@ st.markdown("""
 .title-top{font-size:1.1rem; font-weight:700;}
 .subtitle{font-size:.9rem; color:var(--muted);}
 .section-title{margin:.6rem 0 .3rem; color:var(--muted); font-weight:600; letter-spacing:.02em;}
+
 #追記
 .divider-card {
   height:22px;
