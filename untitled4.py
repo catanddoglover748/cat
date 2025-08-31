@@ -828,6 +828,168 @@ st.markdown("""
 </div>  <!-- 最初の .card を閉じる -->
 """, unsafe_allow_html=True)
 
+# =============================
+# 🤖 決算まとめるくん (β) — ルール/テンプレ版
+# =============================
+#外部LLMなし
+def _fmt_b(x, nd=2):
+    try:
+        return f"{float(x):,.{nd}f}B"
+    except:
+        return "N/A"
+
+def _fmt_eps(x):
+    try:
+        return f"${float(x):.2f}"
+    except:
+        return "TBD"
+
+def _fmt_pct(x):
+    try:
+        return f"{float(x):+.2f}%"
+    except:
+        return "N/A"
+
+def _grade_from_surprise(eps_surprise_pct: float, rev_surprise_pct: float) -> tuple[str, str]:
+    """
+    簡易グレード＆一言コメント
+    """
+    s = (eps_surprise_pct or 0.0) * 0.6 + (rev_surprise_pct or 0.0) * 0.4
+    if s >= 5:
+        return "A", "大幅ビートで内容は強い"
+    if s >= 1.5:
+        return "B", "無難にビート"
+    if s > -1.5:
+        return "C", "概ね予想線上"
+    if s > -5:
+        return "D", "やや弱い（ミス）"
+    return "E", "想定より弱い（大幅ミス）"
+
+def _mk_bullet(label, value, est=None, extra=None):
+    est_txt = f" (予想 {est})" if est is not None else ""
+    extra_txt = f" {extra}" if extra else ""
+    return f"- **{label}**: **{value}**{est_txt}{extra_txt}"
+
+def _extract_kpi_from_text(raw: str) -> list[str]:
+    """
+    任意貼り付けテキストから KPI をいくつか正規表現で拾って箇条書き化
+    - AI server / 出荷 / 営業CF / FCF / Storage などの簡易検出
+    """
+    import re
+    bullets = []
+    if not raw:
+        return bullets
+
+    def num_billions(m):
+        # 29.7B / $29.7B / 29.7 billion の正規化
+        txt = m.group(0)
+        txt = txt.replace("billion", "B")
+        return txt
+
+    # 例: “AI server” 近傍の金額
+    re_ai = re.compile(r"(AI[\s\-]?(server|solution|サーバ|ソリューション).{0,40}?(\$?\d+(\.\d+)?\s?(B|billion)))", re.IGNORECASE)
+    for m in re_ai.finditer(raw):
+        bullets.append("AIサーバー関連: " + num_billions(m))
+
+    # 営業CF / フリーCF
+    re_cfo = re.compile(r"(operating cash flow|営業キャッシュフロー).{0,40}?(\$?\d+(\.\d+)?\s?(B|billion))", re.IGNORECASE)
+    for m in re_cfo.finditer(raw):
+        bullets.append("営業キャッシュフロー: " + num_billions(m))
+
+    re_fcf = re.compile(r"(free cash flow|フリーキャッシュフロー).{0,40}?(\$?\d+(\.\d+)?\s?(B|billion))", re.IGNORECASE)
+    for m in re_fcf.finditer(raw):
+        bullets.append("フリーキャッシュフロー: " + num_billions(m))
+
+    # Storage
+    re_storage = re.compile(r"(storage|ストレージ).{0,40}?(\$?\d+(\.\d+)?\s?(B|billion))", re.IGNORECASE)
+    for m in re_storage.finditer(raw):
+        bullets.append("ストレージ関連: " + num_billions(m))
+
+    # YoY/成長率
+    re_yoy = re.compile(r"(YoY|前年比|前年同期比).{0,20}?(\+|-)?\d+(\.\d+)?%", re.IGNORECASE)
+    for m in re_yoy.finditer(raw):
+        bullets.append("成長率: " + m.group(0))
+
+    # 重複削除
+    uniq = []
+    seen = set()
+    for b in bullets:
+        if b not in seen:
+            uniq.append(b); seen.add(b)
+    return uniq[:8]  # 上限
+
+# ==== ここから UI ====
+st.markdown("### 🧠 決算まとめるくん (β)")
+
+# 乖離率は既存変数を再利用
+eps_surprise_pct = eps_diff_pct                     # EPSサプライズ率
+rev_surprise_pct = rev_diff_pct                     # 売上サプライズ率
+grade, grade_comment = _grade_from_surprise(eps_surprise_pct, rev_surprise_pct)
+
+# 任意の貼り付け欄（プレスリリース/決算サマリー/ニュースをペーストでOK）
+with st.expander("📎 追加情報（任意：プレスリリース/記事を貼り付け）", expanded=False):
+    pasted = st.text_area("貼り付けると AI 風のKPI拾いを試みます（空欄OK）", height=140)
+    kpi_bullets = _extract_kpi_from_text(pasted)
+
+# 見出し
+company_safe = company if isinstance(company, str) else ticker
+st.markdown(f"**{company_safe}  ${ticker}  決算サマリー**")
+
+# ─ 今四半期の実績
+left, right = st.columns(2)
+
+with left:
+    bullets = []
+    bullets.append(_mk_bullet("EPS", _fmt_eps(eps_actual), est=_fmt_eps(eps_est_val)))
+    bullets.append(_mk_bullet("売上高", _fmt_b(rev_actual_B), est=_fmt_b(rev_est_B)))
+    st.markdown("#### 今四半期業績")
+    st.markdown("\n".join(bullets))
+
+with right:
+    bullets = []
+    if next_eps_est not in ("TBD", None, ""):
+        bullets.append(_mk_bullet("次四半期 EPS ガイダンス", _fmt_eps(next_eps_est)))
+    if next_rev_B:
+        bullets.append(_mk_bullet("次四半期 売上高ガイダンス", _fmt_b(next_rev_B)))
+    st.markdown("#### 次四半期ガイダンス")
+    if bullets:
+        st.markdown("\n".join(bullets))
+    else:
+        st.caption("ガイダンス情報は取得できませんでした。")
+
+# ─ 重要指標（テキスト抽出）
+st.markdown("#### 重要指標（抽出）")
+if kpi_bullets:
+    st.markdown("\n".join([f"- {b}" for b in kpi_bullets]))
+else:
+    st.caption("貼り付けテキストから抽出できるKPIは見つかりませんでした（任意テキスト貼り付け欄をご利用ください）。")
+
+# ─ 簡易評価＆AIコメント（テンプレ）
+st.markdown("#### 決算内容の注目ポイント（自動生成）")
+
+eps_line = f"EPSは{_fmt_eps(eps_actual)}（予想{_fmt_eps(eps_est_val)}）"
+rev_line = f"売上高は{_fmt_b(rev_actual_B)}（予想{_fmt_b(rev_est_B)}）"
+surp = f"サプライズ率：EPS {_fmt_pct(eps_surprise_pct)} / Revenue {_fmt_pct(rev_surprise_pct)}"
+guide_line = ""
+if isinstance(next_eps_est, (int, float)) or (isinstance(next_eps_est, str) and next_eps_est not in ("TBD", "")):
+    guide_line += f"次四半期EPSガイダンスは{_fmt_eps(next_eps_est)}。"
+if next_rev_B:
+    guide_line += f"売上高ガイダンスは{_fmt_b(next_rev_B)}。"
+
+overall = f"総合評価は **{grade}**（{grade_comment}）。"
+
+st.markdown(
+    f"- {eps_line}\n"
+    f"- {rev_line}\n"
+    f"- {surp}\n"
+    + (f"- {guide_line}\n" if guide_line else "")
+    + f"- {overall}"
+)
+
+st.caption(
+    "*自動生成のサマリー（β）。参考情報であり、投資判断は自己責任でお願いします。*"
+)
+
 
 # ------------------------------------------
 # 🤖 AI Rating（仮置き）
