@@ -276,6 +276,11 @@ except Exception as e:
     # ユーザーには簡潔に通知
     st.warning(f"⚠️ 決算データの取得でエラー: {e}")
 
+# 🎯 ターゲット価格データ（共有で使う）
+price_data = pd.DataFrame({
+    "Label": ["Before", "After", "Analyst Target", "AI Target"],
+    "Price": [181.75, 176.36, 167.24, 178.20]
+})
 
 # =============================
 # 🎨 ダークカードUI（画像の雰囲気に寄せる）
