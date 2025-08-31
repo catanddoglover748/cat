@@ -225,35 +225,18 @@ try:
     metrics = bf["metric"] if isinstance(bf, dict) and "metric" in bf else {}
     shares_outstanding = get_shares_outstanding(metrics, ticker)
 
-    # 3) 実売上（financials_reported）— dict/list 両対応
+    # 3) 実売上 (financials_reported) – dict/list 両対応
     fin = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
     report_data = fin.get("data", []) if isinstance(fin, dict) else (fin if isinstance(fin, list) else [])
+    rev_actual_B = 0.0
+    
     if report_data and isinstance(report_data[0], dict):
-        report = report_data[0].get("report") or {}
-        ic = report.get("ic") or {}
-        rev_raw = None
-        if isinstance(ic, dict):
-            # 通常ケース
-            rev_raw = (
-                ic.get("Revenue")
-                or ic.get("TotalRevenue")
-                or ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
-            )
-        elif isinstance(ic, list) and len(ic) > 0:
-            # list の場合 → 最初の要素が dict ならそこから取得
-            first_ic = ic[0]
-            if isinstance(first_ic, dict):
-                rev_raw = (
-                    first_ic.get("Revenue")
-                    or first_ic.get("TotalRevenue")
-                    or first_ic.get("RevenueFromContractWithCustomerExcludingAssessedTax")
-                )
-        if rev_raw is not None:
-            try:
-                rev_actual_B = float(rev_raw) / 1e9
-            except Exception:
-                rev_actual_B = 0.0
-                #rev_actual_B = to_billions(rev_raw)
+        # report["ic"] または top-level "ic" を探す
+        ic_obj = (report_data[0].get("report") or {}).get("ic") or report_data[0].get("ic")
+        val = extract_ic_number(ic_obj)
+        if val is not None:
+            rev_actual_B = val / 1e9  # B(十億ドル)に変換
+
 
     # 4) 予想/TTM売上（RPS × 発行株数、無ければ代替）
     rps_candidates = [
