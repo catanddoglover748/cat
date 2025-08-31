@@ -171,6 +171,32 @@ def get_shares_outstanding(metrics: dict, ticker: str) -> float:
         or yf.Ticker(ticker).info.get("sharesOutstanding")
         or 0.0
     )
+# 決算データから Revenue を安全に抽出する関数
+def extract_ic_number(ic):
+    if not ic:
+        return None
+
+    # dict の場合
+    if isinstance(ic, dict):
+        for key in ["Revenue", "TotalRevenue", "RevenueFromContractWithCustomerExcludingAssessedTax"]:
+            val = ic.get(key)
+            if val not in (None, "", "NaN"):
+                try:
+                    return float(val)
+                except:
+                    pass
+
+    # list の場合（最初の要素だけ確認）
+    if isinstance(ic, list) and len(ic) > 0 and isinstance(ic[0], dict):
+        for key in ["Revenue", "TotalRevenue", "RevenueFromContractWithCustomerExcludingAssessedTax"]:
+            val = ic[0].get(key)
+            if val not in (None, "", "NaN"):
+                try:
+                    return float(val)
+                except:
+                    pass
+
+    return None
 
 # 初期値
 eps_actual = 0.0
