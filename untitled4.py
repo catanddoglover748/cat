@@ -29,6 +29,40 @@ SEC_HEADERS = {
     "Accept-Encoding": "gzip, deflate",
     "Host": "data.sec.gov",
 }
+# === SEC throttle & helper ===
+import time, requests
+
+APP  = st.secrets.get("SEC_APP_NAME", "EarningsDash")
+MAIL = st.secrets.get("SEC_CONTACT",  "you@example.com")
+SEC_HEADERS = {
+    "User-Agent": f"{APP}/1.0 ({MAIL})",
+    "Accept-Encoding": "gzip, deflate",
+    "Host": "data.sec.gov",
+}
+
+_last_call_ts = {"sec": 0.0}
+
+def sec_get(url, **kw):
+    wait = 1.0 - (time.monotonic() - _last_call_ts["sec"])
+    if wait > 0:
+        time.sleep(wait)
+    kw.setdefault("headers", SEC_HEADERS)
+    kw.setdefault("timeout", 30)
+    r = requests.get(url, **kw)
+    _last_call_ts["sec"] = time.monotonic()
+
+    retry, backoff = 0, 1.0
+    while r.status_code in (429, 500, 502, 503, 504) and retry < 3:
+        time.sleep(backoff)
+        r = requests.get(url, **kw)
+        _last_call_ts["sec"] = time.monotonic()
+        retry += 1
+        backoff *= 2
+    r.raise_for_status()
+    return r
+
+# =============================
+
 
 # ---- キャッシュ（Streamlit 環境ならこちらを推奨）----
 try:
@@ -48,7 +82,8 @@ def resolve_cik(ticker: str) -> str:
     t = (ticker or "").upper().strip()
     url = "https://www.sec.gov/files/company_tickers.json"
     r = requests.get(url, headers=SEC_HEADERS, timeout=20)
-    r.raise_for_status()
+    r = sec_get(url)
+    #r.raise_for_status()
     data = r.json()  # { "0": {"ticker":"AAPL","cik_str":320193,"title":"Apple Inc."}, ... }
     for _, row in data.items():
         if row.get("ticker", "").upper() == t:
@@ -60,7 +95,7 @@ def resolve_cik(ticker: str) -> str:
 def sec_company_facts(cik: str) -> dict:
     url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
     r = requests.get(url, headers=SEC_HEADERS, timeout=30)
-    r.raise_for_status()
+    r = sec_get(url)
     return r.json()
 
 # ---- 3) 候補キーから fact を抽出（最新の四半期/年次を優先）----
@@ -242,35 +277,6 @@ def load_sp500_symbols() -> list[str]:
     pat = re.compile(r"^[A-Z0-9\.\-]{1,10}$")
     tickers = [t for t in tickers if pat.match(t)]
     return sorted(set(tickers))
-
-@st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
-def load_sp500_symbols() -> list[str]:
-    """WikipediaからS&P500構成銘柄を取得して正規化"""
-    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    tables = pd.read_html(url)
-    sym = None
-
-    for t in tables:
-        for col in t.columns:
-            if str(col).strip().lower() in ("symbol", "ticker", "code"):
-                sym = t[col]
-                break
-        if sym is not None:
-            break
-
-    if sym is None:
-        raise RuntimeError("S&P500 symbols not found on page.")
-
-    tickers = (
-        sym.astype(str)
-           .str.upper()
-           .str.replace(r"\s+", "", regex=True)
-           .str.replace(".", "-", regex=False)
-           .tolist()
-    )
-    pat = re.compile(r"^[A-Z0-9\-]{1,10}$")
-    return sorted({t for t in tickers if pat.match(t)})
-
 
 @st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
 def load_nasdaq100_symbols() -> list[str]:
@@ -562,7 +568,7 @@ DEBUG = True  # デバッグ時 True, 運用時 False
 try:
     def safe_pct(numer, denom):
         try:
-            if denom and float(denom) != 0:
+            if denom not in (None, 0, 0.0):
                 return round((float(numer) - float(denom)) / float(denom) * 100, 2)
         except Exception:
             pass
@@ -660,6 +666,22 @@ try:
 except Exception as e:
     st.warning(f"SEC実績の取得に失敗: {e}")
 # ============ /PATCH-B =========================================================
+# === Estimates layer (EPS/Revenue; keep separate) ===
+eps_est_val = None         # ← UI で使う名前に合わせる
+rev_est_B   = None         # Revenue 予想（無ければ None のまま）
+
+try:
+    earnings_list = finnhub_client.company_earnings(ticker, limit=1)
+    if isinstance(earnings_list, list) and earnings_list:
+        e0 = earnings_list[0]
+        if e0.get("estimate") is not None:
+            eps_est_val = float(e0["estimate"])
+except Exception as e:
+    st.warning(f"EPS予想の取得に失敗: {e}")
+
+# もし Revenue 予想を別APIで入れる場合はここで rev_est_B に代入
+# 例: rev_est_B = <analyst revenue estimate in USD billions>
+
 # ============ PATCH-C: 予想は Finnhub で（混ぜない） ====================
 eps_est = 0.0
 rev_est_B = None  # N/A を許容
@@ -872,9 +894,14 @@ def pill_html(label, value, est=None, delta=None, good=True):
     """
 
 eps_est = f"{eps_est_val}" if eps_est_val else "N/A"
-rev_est_B_disp = f"{rev_est_B:.2f}B" if rev_est_B else "N/A"
-next_eps_est_disp = f"{next_eps_est}" if next_eps_est!="TBD" else "TBD"
-next_rev_est_disp = f"{next_rev_B:.0f}B" if next_rev_B else "N/A"
+# UIで参照している将来ガイダンス系が未定義なら安全に初期化
+next_eps_est = "TBD"
+next_rev_B = None
+next_rev_diff_pct = 0.0
+
+#rev_est_B_disp = f"{rev_est_B:.2f}B" if rev_est_B else "N/A"
+#next_eps_est_disp = f"{next_eps_est}" if next_eps_est!="TBD" else "TBD"
+#next_rev_est_disp = f"{next_rev_B:.0f}B" if next_rev_B else "N/A"
 
 grid_html = f"""
   <div class="grid">
