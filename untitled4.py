@@ -116,7 +116,9 @@ with col2:
 # 📊 決算サマリー表示（チャートの下）
 # ------------------------------------------
 st.markdown("---")
-st.subheader("📋 決算概要")
+st.markdown("""
+<div class="tenet-h1"> 決算概要</div>
+""", unsafe_allow_html=True)
 if False:
     company = yf.Ticker(ticker).info.get("shortName", ticker)
     pe  = yf.Ticker(ticker).info.get("trailingPE", None)
