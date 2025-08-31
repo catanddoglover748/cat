@@ -323,7 +323,7 @@ rps_ttm = _to_float(metrics.get("revenuePerShareTTM"))
 if rps_ttm and shares_outstanding:
     annual_rev_B = round((rps_ttm * float(shares_outstanding)) / 1e9, 2)
 
-except Exception as e:
+#except Exception as e:
     # 内部ログ（開発者用）
     print(traceback.format_exc())
     # ユーザーには簡潔に通知
