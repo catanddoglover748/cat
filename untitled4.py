@@ -32,14 +32,116 @@ st.markdown("""
 # ----------------------------
 # 📌 2. ティッカーとセッション管理
 # ----------------------------
-ticker_list = ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "NVDA", "AMD", "NFLX", "COIN"]
+def _normalize_ticker(t: str) -> str:
+    if not t:
+        return ""
+    t = t.strip().upper()
+    # ざっくり英数・ドット・ハイフンのみ許容
+    return t if re.fullmatch(r"[A-Z0-9\.\-]{1,10}", t) else ""
 
+# 1) 初期ウォッチリスト（最初だけ作る）
+if "watchlists" not in st.session_state:
+    st.session_state.watchlists = {
+        "My Favorites": ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META"],
+        "AI/Chips": ["NVDA", "AMD", "AVGO", "TSM"],
+        "Streaming": ["NFLX", "RBLX", "SPOT"],
+        "Crypto-linked": ["COIN", "MSTR", "HOOD"],
+    }
+if "active_watchlist" not in st.session_state:
+    st.session_state.active_watchlist = "My Favorites"
 if "selected_ticker" not in st.session_state:
-    st.session_state.selected_ticker = ticker_list[0]
+    st.session_state.selected_ticker = st.session_state.watchlists[st.session_state.active_watchlist][0]
 
-# どのセクションでも使えるように先に確定
+# 2) ウォッチリスト選択／新規作成／削除
+st.markdown("#### 📂 ウォッチリスト")
+
+c1, c2, c3 = st.columns([2, 2, 1.2])
+with c1:
+    # 選択で自動保存（keyで状態保持）
+    st.session_state.active_watchlist = st.selectbox(
+        "選択",
+        list(st.session_state.watchlists.keys()),
+        index=list(st.session_state.watchlists.keys()).index(st.session_state.active_watchlist),
+        key="watchlist_select",
+    )
+with c2:
+    _new = st.text_input("新規リスト名を作成", placeholder="例）Semis, High Growth など", label_visibility="visible")
+    if st.button("＋ 作成", use_container_width=True) and _new:
+        name = _new.strip()
+        if name and name not in st.session_state.watchlists:
+            st.session_state.watchlists[name] = []
+            st.session_state.active_watchlist = name
+with c3:
+    # リスト削除（最低1つは残す）
+    can_delete = len(st.session_state.watchlists) > 1
+    if st.button("🗑 削除", use_container_width=True, disabled=not can_delete):
+        name = st.session_state.active_watchlist
+        if can_delete:
+            del st.session_state.watchlists[name]
+            # 適当な残っているリストへ切替
+            st.session_state.active_watchlist = list(st.session_state.watchlists.keys())[0]
+
+# 現在のリスト
+curr_list_name = st.session_state.active_watchlist
+ticker_list = st.session_state.watchlists[curr_list_name]
+
+# 3) 銘柄の追加／重複排除
+st.markdown("#### ⭐ 銘柄（ティッカー）")
+cc1, cc2 = st.columns([3, 1])
+with cc1:
+    new_ticker = st.text_input("ティッカー追加", placeholder="例）AAPL, NVDA など")
+with cc2:
+    if st.button("＋ 追加", use_container_width=True):
+        t = _normalize_ticker(new_ticker)
+        if t and t not in ticker_list:
+            ticker_list.append(t)
+            st.session_state.watchlists[curr_list_name] = ticker_list
+
+# 4) ウォッチリストの表示（TradingView風ボタン + ×削除）
+if ticker_list:
+    rows = (len(ticker_list) + 5) // 6  # ボタンを6列グリッドに
+    for r in range(rows):
+        cols = st.columns(6)
+        for i in range(6):
+            idx = r * 6 + i
+            if idx >= len(ticker_list):
+                continue
+            t = ticker_list[idx]
+            with cols[i]:
+                # 選択ボタン
+                if st.button(t, key=f"pick_{curr_list_name}_{t}", use_container_width=True):
+                    st.session_state.selected_ticker = t
+                # 削除ボタン
+                st.caption("")
+                if st.button("✕", key=f"del_{curr_list_name}_{t}", help="リストから削除", use_container_width=True):
+                    ticker_list.remove(t)
+                    st.session_state.watchlists[curr_list_name] = ticker_list
+else:
+    st.info("このリストにはまだ銘柄がありません。上の入力から追加してください。")
+
+# 5) 選択中ティッカーを確定（以降のセクションと連動）
 ticker = st.session_state.selected_ticker
 
+# 6) 参考：ミニ価格ボード（任意・軽量）
+with st.expander("📈 ミニ価格ボード（参考）", expanded=False):
+    show = ticker_list[:12]  # 負荷軽減
+    data = []
+    for t in show:
+        try:
+            hist = yf.Ticker(t).history(period="2d")  # 直近データ
+            if not hist.empty:
+                # 当日 or 前日比
+                close = hist["Close"].iloc[-1]
+                base = hist["Close"].iloc[-2] if len(hist) > 1 else hist["Open"].iloc[-1]
+                change = (close - base) / base * 100 if base else 0.0
+                data.append({"Ticker": t, "Price": f"${close:.2f}", "Change": f"{change:+.2f}%"})
+        except Exception:
+            pass
+    if data:
+        df = pd.DataFrame(data)
+        st.dataframe(df, hide_index=True, use_container_width=True)
+    else:
+        st.caption("※ データ取得不可の銘柄は表示されません。")
 # ----------------------------
 # 📌 3. 画面を2カラムに分割
 # ----------------------------
