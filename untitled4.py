@@ -136,8 +136,8 @@ if False:
       <div class="header">
         <div class="logo">🟢</div>
         <div class="title-wrap">
-          <div class="h1">{company}</div>
-          <div class="sub">${ticker} Latest Earnings</div>
+          <div class="tenet-h1">{company}</div>
+          <div class="tenet-h2">${ticker} Latest Earnings</div>
         </div>
       </div>
       <div class="kv">
@@ -366,6 +366,23 @@ st.markdown("""
 .pill .lhs .title{color:var(--muted); font-size:.85rem; margin-bottom:2px;}
 .pill .lhs .est{color:var(--muted); font-size:.78rem;}
 .delta{font-size:.85rem; font-weight:600;}
+
+.tenet-h1 {
+  font-family: var(--tenet-head, "Bebas Neue","Oswald","Anton","Arya",sans-serif);
+  font-size: 1.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.tenet-h2 {
+  font-family: var(--tenet-ui, "Oswald","Arya",sans-serif);
+  font-size: 1.0rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .good{color:var(--good);} .bad{color:var(--bad);} .muted{color:var(--muted);}
 .header{display:flex; gap:14px; align-items:center;}
 .logo{width:42px; height:42px; border-radius:10px; background:#0b0e14; display:flex; align-items:center; justify-content:center;}
