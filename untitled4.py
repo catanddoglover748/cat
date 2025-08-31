@@ -52,6 +52,82 @@ if "watchlists" not in st.session_state:
         "Streaming":    ["NFLX", "RBLX", "SPOT"],
         "Crypto-linked":["COIN", "MSTR", "HOOD"],
     }
+#ticker読み込み
+# ---- S&P500 / NASDAQ-100 を自動ロードしてウォッチリストに追加 ----
+import pandas as pd
+import re
+
+@st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
+def load_sp500_symbols() -> list[str]:
+def load_sp500_symbols() -> list[str]:
+    """WikipediaからS&P500構成銘柄を取得して正規化"""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+    tables = pd.read_html(url)
+    # 「Symbol」列のあるテーブルを探す（Wikipediaの表構造変更に耐える）
+    sym = None
+    for t in tables:
+        for col in t.columns:
+            if str(col).strip().lower() in ("symbol", "ticker", "code"):
+                sym = t[col]
+                break
+        if sym is not None:
+            break
+    if sym is None:
+        raise RuntimeError("S&P500 symbols not found on page.")
+    # yfinance 互換に正規化（BRK.B→BRK-B など）
+    tickers = (
+        sym.astype(str)
+           .str.upper()
+           .str.replace(r"\s+", "", regex=True)
+           .str.replace(".", "-", regex=False)
+           .tolist()
+    )
+    # 無効文字をはじく（あなたの _normalize_ticker と整合）
+    pat = re.compile(r"^[A-Z0-9\-]{1,10}$")
+    return sorted({t for t in tickers if pat.match(t)})
+
+@st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
+def load_sp500_symbols() -> list[str]:
+def load_nasdaq100_symbols() -> list[str]:
+    """WikipediaからNASDAQ-100構成銘柄を取得して正規化"""
+    url = "https://en.wikipedia.org/wiki/NASDAQ-100"
+    tables = pd.read_html(url)
+    sym = None
+    # NASDAQ-100は「Ticker」または「Symbol」列の表が1つ以上ある
+    for t in tables:
+        for col in t.columns:
+            if str(col).strip().lower() in ("ticker", "symbol"):
+                sym = t[col]
+                break
+        if sym is not None:
+            break
+    if sym is None:
+        raise RuntimeError("NASDAQ-100 symbols not found on page.")
+    tickers = (
+        sym.astype(str)
+           .str.upper()
+           .str.replace(r"\s+", "", regex=True)
+           .str.replace(".", "-", regex=False)
+           .tolist()
+    )
+    pat = re.compile(r"^[A-Z0-9\-]{1,10}$")
+    return sorted({t for t in tickers if pat.match(t)})
+
+# 実行：取得できたものだけウォッチリストに追加（失敗時は静かにスキップ）
+try:
+    sp500_list = load_sp500_symbols()
+    if sp500_list:
+        st.session_state.watchlists["S&P 500"] = sp500_list
+except Exception as e:
+    st.caption("⚠️ S&P500 リストの自動取得に失敗しました（後で再試行できます）。")
+
+try:
+    ndx_list = load_nasdaq100_symbols()
+    if ndx_list:
+        st.session_state.watchlists["NASDAQ-100"] = ndx_list
+except Exception as e:
+    st.caption("⚠️ NASDAQ-100 リストの自動取得に失敗しました（後で再試行できます）。")
+# ----------------------------------------------------------------------
 
 if "active_watchlist" not in st.session_state:
     st.session_state.active_watchlist = "My Favorites"
