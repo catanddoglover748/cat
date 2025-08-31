@@ -59,11 +59,11 @@ import re
 
 @st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
 def load_sp500_symbols() -> list[str]:
-def load_sp500_symbols() -> list[str]:
     """WikipediaからS&P500構成銘柄を取得して正規化"""
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     tables = pd.read_html(url)
-    # 「Symbol」列のあるテーブルを探す（Wikipediaの表構造変更に耐える）
+
+    # 「Symbol」列のあるテーブルを探す
     sym = None
     for t in tables:
         for col in t.columns:
@@ -72,19 +72,23 @@ def load_sp500_symbols() -> list[str]:
                 break
         if sym is not None:
             break
+
     if sym is None:
         raise RuntimeError("S&P500 symbols not found on page.")
-    # yfinance 互換に正規化（BRK.B→BRK-B など）
+
+    # yfinance 互換に正規化（BRK.B → BRK-B など）
     tickers = (
         sym.astype(str)
-           .str.upper()
-           .str.replace(r"\s+", "", regex=True)
-           .str.replace(".", "-", regex=False)
-           .tolist()
+        .str.upper()
+        .str.replace(r"\s+", "", regex=True)
+        .str.replace(".", "-", regex=False)
+        .tolist()
     )
+
     # 無効文字をはじく（あなたの _normalize_ticker と整合）
-    pat = re.compile(r"^[A-Z0-9\-]{1,10}$")
-    return sorted({t for t in tickers if pat.match(t)})
+    pat = re.compile(r"^[A-Z0-9\.\-]{1,10}$")
+    tickers = [t for t in tickers if pat.match(t)]
+    return sorted(set(tickers))
 
 @st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
 def load_sp500_symbols() -> list[str]:
