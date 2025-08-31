@@ -511,6 +511,57 @@ st.markdown("""
 }
 .card + .divider-card { margin-bottom:14px; }
 #追記終了
+
+
+#追記
+/* --- ウォッチリスト：横スライドのタブ --- */
+.wl-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 6px 2px 8px 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.wl-tab {
+  white-space: nowrap;
+  background: var(--chip);
+  border: 1px solid #38425f;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: .9rem;
+  cursor: pointer;
+  user-select: none;
+}
+.wl-tab.active { background: #2e6af2; border-color:#2e6af2; color:#fff; }
+
+/* --- ティッカー縦リスト --- */
+.ticker-list { display: flex; flex-direction: column; gap: 8px; }
+.ticker-row {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid #2a3246;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.tkr-ico {
+  width: 26px; height: 26px; border-radius: 50%;
+  display:flex; align-items:center; justify-content:center;
+  background:#0b0e14; color:#9EE06F; font-size:.8rem; font-weight:700;
+}
+.tkr-name { display:flex; flex-direction:column; }
+.tkr-name .sym { font-weight:700; letter-spacing:.02em; }
+.tkr-name .cmp { color:var(--muted); font-size:.82rem; }
+.tkr-price { font-weight:700; letter-spacing:.01em; }
+.tkr-chg { font-weight:700; }
+.tkr-up { color:#28d17c; } .tkr-dn { color:#ff4d4f; } .tkr-flat { color:var(--muted); }
+
+.ticker-row:hover { border-color:#3a6df0; box-shadow:0 0 0 2px rgba(58,109,240,.15) inset; }
+
+
+#追記終了
 </style>
 """, unsafe_allow_html=True)
 
