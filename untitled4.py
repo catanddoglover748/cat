@@ -32,30 +32,40 @@ st.markdown("""
 # ----------------------------
 # 📌 2. ティッカーとセッション管理
 # ----------------------------
+# =========================
+# 2. ティッカーとセッション管理（PATCH2/3 一式）
+# =========================
+
+# --- バリデーション：ティッカーを大文字・英数/ドット/ハイフンに正規化 ---
 def _normalize_ticker(t: str) -> str:
     if not t:
         return ""
     t = t.strip().upper()
-    # ざっくり英数・ドット・ハイフンのみ許容
-    return t if re.fullmatch(r"[A-Z0-9\.\-]{1,10}", t) else ""
+    # ざっくり英数・ドット・ハイフンのみ許容（1〜10文字）
+    return t if re.fullmatch(r"[A-Z0-9.\-]{1,10}", t) else ""
 
 # 1) 初期ウォッチリスト（最初だけ作る）
 if "watchlists" not in st.session_state:
     st.session_state.watchlists = {
         "My Favorites": ["AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META"],
-        "AI/Chips": ["NVDA", "AMD", "AVGO", "TSM"],
-        "Streaming": ["NFLX", "RBLX", "SPOT"],
-        "Crypto-linked": ["COIN", "MSTR", "HOOD"],
+        "AI/Chips":     ["NVDA", "AMD", "AVGO", "TSM"],
+        "Streaming":    ["NFLX", "RBLX", "SPOT"],
+        "Crypto-linked":["COIN", "MSTR", "HOOD"],
     }
+
 if "active_watchlist" not in st.session_state:
     st.session_state.active_watchlist = "My Favorites"
+
 if "selected_ticker" not in st.session_state:
     st.session_state.selected_ticker = st.session_state.watchlists[st.session_state.active_watchlist][0]
 
-# 2) ウォッチリスト選択／新規作成／削除
-st.markdown("#### 📂 ウォッチリスト")
+# -------------------------------
+# 2) ウォッチリスト選択/新規作成/削除   ← PATCH2
+# -------------------------------
+st.markdown("#### 📁 ウォッチリスト")
 
-c1, c2, c3 = st.columns([2, 2, 1.2])
+c1, c2, c3 = st.columns([2, 2, 1])
+
 with c1:
     # 選択で自動保存（keyで状態保持）
     st.session_state.active_watchlist = st.selectbox(
@@ -64,13 +74,15 @@ with c1:
         index=list(st.session_state.watchlists.keys()).index(st.session_state.active_watchlist),
         key="watchlist_select",
     )
+
 with c2:
-    _new = st.text_input("新規リスト名を作成", placeholder="例）Semis, High Growth など", label_visibility="visible")
+    _new = st.text_input("新規リスト名を作成", placeholder="例) Semis, High Growth など", label_visibility="visible")
     if st.button("＋ 作成", use_container_width=True) and _new:
         name = _new.strip()
         if name and name not in st.session_state.watchlists:
             st.session_state.watchlists[name] = []
             st.session_state.active_watchlist = name
+
 with c3:
     # リスト削除（最低1つは残す）
     can_delete = len(st.session_state.watchlists) > 1
@@ -85,21 +97,31 @@ with c3:
 curr_list_name = st.session_state.active_watchlist
 ticker_list = st.session_state.watchlists[curr_list_name]
 
-# 3) 銘柄の追加／重複排除
+# -------------------------------
+# 3) 銘柄の追加/重複排除
+# -------------------------------
 st.markdown("#### ⭐ 銘柄（ティッカー）")
+
 cc1, cc2 = st.columns([3, 1])
 with cc1:
-    new_ticker = st.text_input("ティッカー追加", placeholder="例）AAPL, NVDA など")
+    new_ticker = st.text_input("ティッカー追加", placeholder="例) AAPL, NVDA など")
+
 with cc2:
     if st.button("＋ 追加", use_container_width=True):
         t = _normalize_ticker(new_ticker)
-        if t and t not in ticker_list:
+        if not t:
+            st.warning("⚠️ ティッカーは英数字・ドット・ハイフンのみ、1〜10文字で入力してください。")
+        elif t in ticker_list:
+            st.info(f"ℹ️ {t} はすでにリストにあります。")
+        else:
             ticker_list.append(t)
             st.session_state.watchlists[curr_list_name] = ticker_list
 
-# 4) ウォッチリストの表示（TradingView風ボタン + ×削除）
+# -------------------------------
+# 4) ウォッチリストの表示（TradingView風ボタン ＋ ✖削除） ← PATCH3
+# -------------------------------
 if ticker_list:
-    rows = (len(ticker_list) + 5) // 6  # ボタンを6列グリッドに
+    rows = (len(ticker_list) + 5) // 6   # ボタンを6列グリッドに
     for r in range(rows):
         cols = st.columns(6)
         for i in range(6):
@@ -116,30 +138,43 @@ if ticker_list:
                 if st.button("✕", key=f"del_{curr_list_name}_{t}", help="リストから削除", use_container_width=True):
                     ticker_list.remove(t)
                     st.session_state.watchlists[curr_list_name] = ticker_list
+                    # すべて消えたときの保険
+                    if len(ticker_list) == 0 and "selected_ticker" in st.session_state:
+                        del st.session_state["selected_ticker"]
 else:
     st.info("このリストにはまだ銘柄がありません。上の入力から追加してください。")
 
+# -------------------------------
 # 5) 選択中ティッカーを確定（以降のセクションと連動）
+# -------------------------------
+# リストが空で selected_ticker がない場合の保険
+if ticker_list and "selected_ticker" not in st.session_state:
+    st.session_state.selected_ticker = ticker_list[0]
+
 ticker = st.session_state.selected_ticker
 
+# -------------------------------
 # 6) 参考：ミニ価格ボード（任意・軽量）
-with st.expander("📈 ミニ価格ボード（参考）", expanded=False):
-    show = ticker_list[:12]  # 負荷軽減
+# -------------------------------
+with st.expander("🪙 ミニ価格ボード（参考）", expanded=False):
+    show = ticker_list[:12]  # 負荷軽減で12件まで
     data = []
     for t in show:
         try:
             hist = yf.Ticker(t).history(period="2d")  # 直近データ
+            if hist.empty:
+                hist = yf.Ticker(t).history(period="1d")
             if not hist.empty:
                 # 当日 or 前日比
                 close = hist["Close"].iloc[-1]
-                base = hist["Close"].iloc[-2] if len(hist) > 1 else hist["Open"].iloc[-1]
-                change = (close - base) / base * 100 if base else 0.0
-                data.append({"Ticker": t, "Price": f"${close:.2f}", "Change": f"{change:+.2f}%"})
+                base  = hist["Close"].iloc[-2] if len(hist) > 1 else hist["Open"].iloc[-1]
+                chg   = (close - base) / base * 100 if base else 0.0
+                data.append({"Ticker": t, "Price": f"${close:,.2f}", "Change": f"{chg:+.2f}%"})
         except Exception:
             pass
     if data:
-        df = pd.DataFrame(data)
-        st.dataframe(df, hide_index=True, use_container_width=True)
+        st.dataframe(data, use_container_width=True, hide_index=True)
+
     else:
         st.caption("※ データ取得不可の銘柄は表示されません。")
 # ----------------------------
