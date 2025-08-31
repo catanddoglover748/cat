@@ -141,10 +141,10 @@ if False:
         </div>
       </div>
       <div class="kv">
-        <span class="chip">Market Cap: <b>{human_mc(mcap)}</b></span>
-        <span class="chip">P/E: <b>{f"{pe:.2f}" if isinstance(pe,(int,float)) else "N/A"}</b></span>
-        <span class="chip">Forward P/E: <b>{f"{fpe:.2f}" if isinstance(fpe,(int,float)) else "N/A"}</b></span>
-        <span class="chip">PEG: <b>{f"{peg:.2f}" if isinstance(peg,(int,float)) else "N/A"}</b></span>
+        <span class="tenet-chip">Market Cap: <b>{human_mc(mcap)}</b></span>
+        <span class="tenet-chip">P/E: <b>{f"{pe:.2f}" if isinstance(pe,(int,float)) else "N/A"}</b></span>
+        <span class="tenet-chip">Forward P/E: <b>{f"{fpe:.2f}" if isinstance(fpe,(int,float)) else "N/A"}</b></span>
+        <span class="tenet-chip">PEG: <b>{f"{peg:.2f}" if isinstance(peg,(int,float)) else "N/A"}</b></span>
       </div>
     """, unsafe_allow_html=True)
 
