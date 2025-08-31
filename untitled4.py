@@ -92,21 +92,51 @@ def load_sp500_symbols() -> list[str]:
 
 @st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
 def load_sp500_symbols() -> list[str]:
-def load_nasdaq100_symbols() -> list[str]:
-    """WikipediaからNASDAQ-100構成銘柄を取得して正規化"""
-    url = "https://en.wikipedia.org/wiki/NASDAQ-100"
+    """WikipediaからS&P500構成銘柄を取得して正規化"""
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
     tables = pd.read_html(url)
     sym = None
-    # NASDAQ-100は「Ticker」または「Symbol」列の表が1つ以上ある
+
     for t in tables:
         for col in t.columns:
-            if str(col).strip().lower() in ("ticker", "symbol"):
+            if str(col).strip().lower() in ("symbol", "ticker", "code"):
                 sym = t[col]
                 break
         if sym is not None:
             break
+
+    if sym is None:
+        raise RuntimeError("S&P500 symbols not found on page.")
+
+    tickers = (
+        sym.astype(str)
+           .str.upper()
+           .str.replace(r"\s+", "", regex=True)
+           .str.replace(".", "-", regex=False)
+           .tolist()
+    )
+    pat = re.compile(r"^[A-Z0-9\-]{1,10}$")
+    return sorted({t for t in tickers if pat.match(t)})
+
+
+@st.cache_data(ttl=2_592_000)  # 約30日キャッシュ
+def load_nasdaq100_symbols() -> list[str]:
+    """WikipediaからNASDAQ100構成銘柄を取得して正規化"""
+    url = "https://en.wikipedia.org/wiki/NASDAQ-100"
+    tables = pd.read_html(url)
+    sym = None
+
+    for t in tables:
+        for col in t.columns:
+            if str(col).strip().lower() in ("symbol", "ticker"):
+                sym = t[col]
+                break
+        if sym is not None:
+            break
+
     if sym is None:
         raise RuntimeError("NASDAQ-100 symbols not found on page.")
+
     tickers = (
         sym.astype(str)
            .str.upper()
