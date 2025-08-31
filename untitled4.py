@@ -325,9 +325,9 @@ if rps_ttm and shares_outstanding:
 
 #except Exception as e:
     # 内部ログ（開発者用）
-    print(traceback.format_exc())
+    #print(traceback.format_exc())
     # ユーザーには簡潔に通知
-    st.warning(f"⚠️ 決算データの取得でエラー: {e}")
+    #st.warning(f"⚠️ 決算データの取得でエラー: {e}")
 
 # 🎯 ターゲット価格データ（共有で使う）
 price_data = pd.DataFrame({
