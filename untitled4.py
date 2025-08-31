@@ -367,6 +367,17 @@ st.markdown("""
 .title-top{font-size:1.1rem; font-weight:700;}
 .subtitle{font-size:.9rem; color:var(--muted);}
 .section-title{margin:.6rem 0 .3rem; color:var(--muted); font-weight:600; letter-spacing:.02em;}
+#追記
+.divider-card {
+  height:22px;
+  background:var(--card);
+  border:1px solid #2a3246;
+  border-radius:14px;
+  margin-top:8px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+.card + .divider-card { margin-bottom:14px; }
+#追記終了
 </style>
 """, unsafe_allow_html=True)
 
@@ -402,6 +413,8 @@ st.markdown(f"""
     <span class="chip">PEG: <b>{f"{peg:.2f}" if isinstance(peg,(int,float)) else "N/A"}</b></span>
   </div>
 """, unsafe_allow_html=True)
+#追記
+st.markdown('<div class="divider-card"></div>', unsafe_allow_html=True)
 
 # --- 3) ピル型メトリクス（左：EPS系 / 右：Revenue系） ---
 def pill_html(label, value, est=None, delta=None, good=True):
