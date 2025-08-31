@@ -610,7 +610,11 @@ try:
                         if f is not None:
                             return f
         return None
-    
+except Exception as e:
+    if DEBUG:
+        st.error(traceback.format_exc())  # 開発中は詳細表示
+    else:
+        st.warning("⚠️ 決算データの取得でエラーが発生しました。")    
 # ========= Phase A: 指標の計算（UI に渡す） =========
 eps_actual = eps_est_val = 0.0
 eps_diff_pct = 0.0
@@ -693,11 +697,11 @@ rev_diff_pct       = _safe_pct2(rev_actual_B, rev_est_B) if rev_est_B else 0.0
 next_rev_diff_pct  = _safe_pct2(next_rev_B, rev_actual_B) if rev_actual_B else 0.0
 
 
-except Exception as e:
-    if DEBUG:
-        st.error(traceback.format_exc())  # 開発中は詳細表示
-    else:
-        st.warning("⚠️ 決算データの取得でエラーが発生しました。")
+#except Exception as e:
+    #if DEBUG:
+        #st.error(traceback.format_exc())  # 開発中は詳細表示
+    #else:
+        #st.warning("⚠️ 決算データの取得でエラーが発生しました。")
         
 # 🎯 ターゲット価格データ（共有で使う）
 price_data = pd.DataFrame({
