@@ -19,7 +19,130 @@ from datetime import datetime, timedelta
 st.set_page_config(layout="wide")
 api_key = st.secrets["FINNHUB_API_KEY"]
 finnhub_client = finnhub.Client(api_key=api_key)
+# ========= Phase A: 指標取得ヘルパー（EPSと売上を分離） =========
+from datetime import datetime, date
+from typing import Any, Dict, Optional
 
+def _safe_float(x) -> Optional[float]:
+    try:
+        if x in (None, "", "NaN"): return None
+        return float(x)
+    except Exception:
+        return None
+
+def _billionize(x: Optional[float]) -> Optional[float]:
+    return x/1e9 if isinstance(x, (int, float)) else None
+
+def _qkey_from_date(d: date) -> str:
+    q = (d.month - 1)//3 + 1
+    return f"{d.year}Q{q}"
+
+def _safe_pct(numer: Optional[float], denom: Optional[float]) -> float:
+    try:
+        if denom and float(denom) != 0:
+            return round((float(numer) - float(denom))/float(denom)*100, 2)
+    except Exception:
+        pass
+    return 0.0
+
+# -------- EPS (Finnhub) --------
+def fetch_eps_finnhub(ticker: str, limit: int = 4) -> Dict[str, Any]:
+    out = {"metric": "EPS", "source": "finnhub_company_earnings", "ok": False}
+    try:
+        rows = finnhub_client.company_earnings(ticker, limit=limit) or []
+        row = rows[0] if rows and isinstance(rows[0], dict) else {}
+        actual   = _safe_float(row.get("actual"))
+        estimate = _safe_float(row.get("estimate"))
+        period   = row.get("period")  # "YYYY-MM-DD"
+        if period:
+            d = datetime.fromisoformat(period).date()
+            out["period_key"] = _qkey_from_date(d)
+        out["actual"]       = actual
+        out["estimate"]     = estimate
+        out["surprise_pct"] = _safe_pct(actual, estimate)
+        out["ok"] = actual is not None
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+# -------- Revenue (Finnhub → yfinance fallback) --------
+def _extract_ic_number(ic: Any) -> Optional[float]:
+    """Finnhub financials_reported の 'ic'（dict/list）から売上を拾う"""
+    if not ic: 
+        return None
+    if isinstance(ic, list) and ic and isinstance(ic[0], dict):
+        ic = ic[0]
+    if isinstance(ic, dict):
+        for k in [
+            "Revenue",
+            "TotalRevenue",
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "SalesRevenueNet",
+        ]:
+            v = ic.get(k)
+            fv = _safe_float(v)
+            if fv is not None:
+                return fv
+    return None
+
+def revenue_from_finnhub(ticker: str) -> Dict[str, Any]:
+    out = {"metric": "Revenue", "source": "finnhub_financials_reported", "ok": False}
+    try:
+        fin = finnhub_client.financials_reported(symbol=ticker, freq="quarterly") or {}
+        data = fin.get("data") if isinstance(fin, dict) else (fin if isinstance(fin, list) else [])
+        row  = data[0] if isinstance(data, list) and data else None
+        if isinstance(row, dict):
+            ic   = (row.get("report") or {}).get("ic") or row.get("ic")
+            val  = _extract_ic_number(ic)
+            per  = row.get("period") or row.get("reportDate") or row.get("endDate") or row.get("periodEndDate")
+            if per:
+                d = datetime.fromisoformat(per).date()
+                out["period_key"] = _qkey_from_date(d)
+            out["raw"]      = val
+            out["value_B"]  = _billionize(val)
+            out["currency"] = row.get("currency") or "USD"
+            out["ok"]       = out["value_B"] is not None
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+def revenue_from_yfinance(ticker: str) -> Dict[str, Any]:
+    """yfinance の quarterly_financials をフォールバックとして使用"""
+    out = {"metric": "Revenue", "source": "yfinance_quarterly_financials", "ok": False}
+    try:
+        t = yf.Ticker(ticker)
+        qf = getattr(t, "quarterly_financials", None)
+        if qf is not None and not qf.empty:
+            # index から 'revenue' っぽい行を探す
+            idx = qf.index.to_series().astype(str).str.lower()
+            mask = idx.str.contains("total revenue") | idx.str.contains("revenue")
+            if mask.any():
+                row = qf[mask].iloc[0]
+                val = _safe_float(row.iloc[0])
+                out["raw"]      = val
+                out["value_B"]  = _billionize(val)
+                try:
+                    # 最新列の日時を Q キーに変換
+                    d = row.index[0].to_pydatetime().date()
+                    out["period_key"] = _qkey_from_date(d)
+                except Exception:
+                    pass
+                out["currency"] = "USD"  # yfinance は通貨明示がないことが多いので UI で注意書き
+                out["ok"]       = out["value_B"] is not None
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+def fetch_revenue_q(ticker: str) -> Dict[str, Any]:
+    """売上（四半期）を Finnhub → yfinance の順に取得。period_key / currency / source 付きで返す。"""
+    r = revenue_from_finnhub(ticker)
+    if not r.get("ok"):
+        y = revenue_from_yfinance(ticker)
+        if y.get("ok"):
+            y["fallback"] = True
+            return y
+    return r
+# ============================================================================================================ 
 # ----------------------------
 # 📌 1. ページタイトル
 # ----------------------------
@@ -488,97 +611,87 @@ try:
                             return f
         return None
     
-    # 初期化
-    eps_actual = eps_est_val = 0.0
-    eps_diff_pct = 0.0
-    rev_actual_B = rev_est_B = 0.0
-    next_eps_est = "TBD"
-    next_rev_B = next_rev_diff_pct = 0.0
-    annual_eps = "TBD"
-    annual_rev_B = "TBD"
-    
-    # 1) EPS・売上（まず company_earnings を優先）
-    earnings_list = finnhub_client.company_earnings(ticker, limit=1)
-    if isinstance(earnings_list, list) and earnings_list and isinstance(earnings_list[0], dict):
-        e0 = earnings_list[0]
-    
-        # EPS
-        eps_actual  = _to_float(e0.get("actual"))   or 0.0
-        eps_est_val = _to_float(e0.get("estimate")) or 0.0
-        eps_diff_pct = safe_pct(eps_actual, eps_est_val)
-    
-        # 売上（実績・予想） ※あればここが一番素直
-        ra = e0.get("revenue") or e0.get("revenueActual") or e0.get("sales")
-        re = e0.get("revenueEstimate") or e0.get("salesEstimate")
-        if ra is not None:
-            f = _to_float(ra)
-            if f is not None:
-                rev_actual_B = f / 1e9
-        if re is not None:
-            f = _to_float(re)
-            if f is not None:
-                rev_est_B = f / 1e9
-    
-    # 2) 基本メトリクス
+# ========= Phase A: 指標の計算（UI に渡す） =========
+eps_actual = eps_est_val = 0.0
+eps_diff_pct = 0.0
+rev_actual_B = 0.0
+rev_est_B = 0.0
+rev_diff_pct = 0.0
+next_eps_est = "TBD"
+next_rev_B = 0.0
+next_rev_diff_pct = 0.0
+annual_eps = "TBD"
+annual_rev_B = "TBD"
+
+# ---- EPS（Finnhub 一本化）----
+eps_info = fetch_eps_finnhub(ticker)
+if eps_info.get("ok"):
+    eps_actual   = eps_info["actual"] or 0.0
+    eps_est_val  = eps_info["estimate"] or 0.0
+    eps_diff_pct = eps_info["surprise_pct"] or 0.0
+else:
+    st.caption(f"EPS取得に失敗（{eps_info.get('error','no data')}）")
+
+# ---- 売上（Finnhub → yfinance フォールバック）----
+rev_info = fetch_revenue_q(ticker)
+if rev_info.get("ok"):
+    rev_actual_B = rev_info["value_B"] or 0.0
+    # 参考：UI に出すためのバッジ（source / fallback）
+    source_badge = rev_info["source"] + (" (fallback)" if rev_info.get("fallback") else "")
+    st.caption(f"Revenue source: {source_badge}  | period: {rev_info.get('period_key','?')}  | currency: {rev_info.get('currency','?')}")
+else:
+    st.caption(f"Revenue取得に失敗（{rev_info.get('error','no data')}）")
+
+# ---- 予想側（お手元の metrics など、今までのロジックを流用）----
+try:
     bf = finnhub_client.company_basic_financials(ticker, "all")
     metrics = bf["metric"] if isinstance(bf, dict) and "metric" in bf else {}
-    shares_outstanding = get_shares_outstanding(metrics, ticker)
-    
-    # 3) 売上実績がまだ 0 → financials_reported でフォールバック
-    if rev_actual_B == 0.0:
-        fin = finnhub_client.financials_reported(symbol=ticker, freq="quarterly")
-        report_data = fin.get("data", []) if isinstance(fin, dict) else (fin if isinstance(fin, list) else [])
-        if report_data and isinstance(report_data[0], dict):
-            ic_obj = (report_data[0].get("report") or {}).get("ic") or report_data[0].get("ic")
-            val = extract_ic_number(ic_obj)
-            if val is not None:
-                rev_actual_B = val / 1e9
-    
-    # 4) 売上予想がまだ 0 → RPS×発行株数などで補完
-    if rev_est_B == 0.0:
-        rps_candidates = [
-            metrics.get("revenuePerShareForecast"),
-            metrics.get("revenuePerShare"),
-            metrics.get("revenuePerShareTTM"),
-        ]
-        rev_total = metrics.get("revenueTTM") or metrics.get("revenueAnnual")
-        if rev_total and shares_outstanding:
-            f_total = _to_float(rev_total)
-            if f_total and shares_outstanding:
-                try:
-                    rps_candidates.append(f_total / float(shares_outstanding))
-                except Exception:
-                    pass
-    
-        rps_used = next((x for x in rps_candidates if isinstance(x, (int, float)) and x > 0), None)
-        if rps_used and shares_outstanding:
-            rev_est_B = (float(rps_used) * float(shares_outstanding)) / 1e9
-    
-    # 5) 次期予想
+    shares_outstanding = (
+        metrics.get("sharesOutstanding")
+        or metrics.get("shareOutstanding")
+        or yf.Ticker(ticker).info.get("sharesOutstanding")
+        or 0.0
+    )
+
+    # 予想売上（RPS × 発行株数）
+    rps_candidates = [
+        metrics.get("revenuePerShareForecast"),
+        metrics.get("revenuePerShare"),
+        metrics.get("revenuePerShareTTM"),
+    ]
+    rps_used = next((x for x in rps_candidates if isinstance(x, (int, float)) and x > 0), None)
+    if rps_used and shares_outstanding:
+        rev_est_B = (float(rps_used) * float(shares_outstanding)) / 1e9
+
+    # 次期予想
     next_eps_est = (
         metrics.get("nextEarningsPerShare")
         or metrics.get("epsNextQuarter")
         or metrics.get("epsEstimateNextQuarter")
         or "TBD"
     )
-    rps_next = metrics.get("revenuePerShareForecast")
-    if rps_next and shares_outstanding:
-        f_next = _to_float(rps_next)
-        if f_next:
-            next_rev_B = (f_next * float(shares_outstanding)) / 1e9
-    
-    # 6) 乖離率・年間
-    rev_diff_pct      = safe_pct(rev_actual_B, rev_est_B)
-    next_rev_diff_pct = safe_pct(next_rev_B, rev_actual_B) if rev_actual_B else 0.0
-    
-    annual_eps = (
-        metrics.get("epsInclExtraItemsAnnual")
-        or metrics.get("epsInclExtraItemsTTM")
-        or "TBD"
-    )
-    rps_ttm = _to_float(metrics.get("revenuePerShareTTM"))
-    if rps_ttm and shares_outstanding:
-        annual_rev_B = round((rps_ttm * float(shares_outstanding)) / 1e9, 2)
+    if metrics.get("revenuePerShareForecast") and shares_outstanding:
+        next_rev_B = (float(metrics["revenuePerShareForecast"]) * float(shares_outstanding)) / 1e9
+
+    # 年間
+    annual_eps = metrics.get("epsInclExtraItemsAnnual") or metrics.get("epsInclExtraItemsTTM") or "TBD"
+    if metrics.get("revenuePerShareTTM") and shares_outstanding:
+        annual_rev_B = round((float(metrics["revenuePerShareTTM"]) * float(shares_outstanding)) / 1e9, 2)
+
+except Exception as e:
+    st.caption(f"metrics取得に失敗（{type(e).__name__}: {e}）")
+
+# 乖離率
+def _safe_pct2(n, d): 
+    try:
+        n=float(n); d=float(d)
+        return round((n-d)/d*100,2) if d else 0.0
+    except Exception:
+        return 0.0
+
+rev_diff_pct       = _safe_pct2(rev_actual_B, rev_est_B) if rev_est_B else 0.0
+next_rev_diff_pct  = _safe_pct2(next_rev_B, rev_actual_B) if rev_actual_B else 0.0
+
 
 except Exception as e:
     if DEBUG:
