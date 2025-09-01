@@ -25,10 +25,11 @@ from functools import lru_cache
 
 # ⚠ SEC の User-Agent は実アプリ名/連絡先メールを入れてください（EDGAR 規約）
 SEC_HEADERS = {
-    "User-Agent": "YourAppName/1.0 (your-email@example.com)",
+    "User-Agent": "StockEarningsDashboard/1.0 (gaurrd5300@gmail.com)",
     "Accept-Encoding": "gzip, deflate",
     "Host": "data.sec.gov",
 }
+
 # === SEC throttle & helper ===
 import time, requests
 
