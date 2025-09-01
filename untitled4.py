@@ -213,9 +213,7 @@ def get_us_actuals_from_sec(ticker: str) -> dict:
 # ----------------------------
 #st.title("📊 株価チャートビューア（TradingView風）")
 # 📌 1. ページタイトル
-st.markdown("""
-<div class="tenet-title"> 株価チャートビューア <span>(TradingView風)</span></div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="tenet-h1"> 株価チャートビューア <span>(TradingView風)</span></div>', unsafe_allow_html=True)
 
 # ----------------------------
 # 📌 2. ティッカーとセッション管理
