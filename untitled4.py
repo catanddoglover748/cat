@@ -841,7 +841,15 @@ st.markdown("""
 
 # --- 2) ヘッダー（銘柄名・ティッカー・クォーター） ---
 company = yf.Ticker(ticker).info.get("shortName", ticker)
-quarter_label = f"${ticker} Q2 2026"  # 必要に応じて動的に
+
+# actual を取った直後（PATCH-B内）で period を保存しておく
+period_info = actual.get("period", {}) if 'actual' in locals() else {}
+
+# ヘッダー生成箇所で
+fy = period_info.get("fy"); fp = period_info.get("fp"); filed = period_info.get("filed")
+quarter_label = f"${ticker} {fp or ''} {fy or ''}".strip()
+# 例: "$NVDA Q2 2025" のように表示
+
 market_cap = yf.Ticker(ticker).info.get("marketCap", None)
 def human(n):  # 時価総額の簡易整形
     try:
