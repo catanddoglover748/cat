@@ -893,27 +893,72 @@ def pill_html(label, value, est=None, delta=None, good=True):
     </div>
     """
 
-eps_est = f"{eps_est_val}" if eps_est_val else "N/A"
+# === Estimates (display strings) ===
+# EPS 予想の表示用。0.00 はそのまま表示し、None のみ N/A にする
+eps_est = f"{eps_est_val:.2f}" if isinstance(eps_est_val, (int, float)) else "N/A"
+
 # UIで参照している将来ガイダンス系が未定義なら安全に初期化
-next_eps_est = "TBD"
-next_rev_B = None
-next_rev_diff_pct = 0.0
+next_eps_est = "TBD"      # 数値が入るようにしたら float に
+next_rev_B   = None       # 将来レベニュー予想（B単位）。数値が入るようにしたら float に
+next_rev_diff_pct = 0.0   # 将来レベニューの乖離率（あれば算出）
 
-#rev_est_B_disp = f"{rev_est_B:.2f}B" if rev_est_B else "N/A"
-#next_eps_est_disp = f"{next_eps_est}" if next_eps_est!="TBD" else "TBD"
-#next_rev_est_disp = f"{next_rev_B:.0f}B" if next_rev_B else "N/A"
+# ---- 表示用の整形（未定義でも落ちないように） ----
+rev_est_B_disp      = f"{next_rev_B:.2f}B" if isinstance(next_rev_B, (int, float)) else "N/A"
+next_eps_est_disp   = f"{next_eps_est:.2f}" if isinstance(next_eps_est, (int, float)) else "TBD"
+next_rev_est_disp   = f"{next_rev_B:.2f}B" if isinstance(next_rev_B, (int, float)) else "N/A"
 
-grid_html = f"""
+# すでに前段で算出しているはずの実績系
+#   eps_actual: float (SEC実績)
+#   eps_diff_pct = safe_pct(eps_actual, eps_est_val)
+#   rev_actual_B: float (実績Revenue, B単位)
+#   rev_est_B:   float | None（アナリスト予想があれば）
+#   rev_diff_pct = safe_pct(rev_actual_B, rev_est_B)
+# これらが未定義のときに落ちないように保険
+eps_actual   = eps_actual   if 'eps_actual'   in locals() else None
+eps_diff_pct = eps_diff_pct if 'eps_diff_pct' in locals() else 0.0
+rev_actual_B = rev_actual_B if 'rev_actual_B' in locals() else None
+rev_diff_pct = rev_diff_pct if 'rev_diff_pct' in locals() else 0.0
+rev_est_B_disp = f"{rev_est_B:.2f}B" if 'rev_est_B' in locals() and isinstance(rev_est_B, (int, float)) else "N/A"
+
+# ---- ピル表示 ----
+grid_html = """
   <div class="grid">
-    {pill_html("EPS", f"{eps_actual:.2f}" if isinstance(eps_actual,(int,float)) else "TBD",
-               est=f"{eps_est}", delta=f"{eps_diff_pct:+.2f}%", good=(eps_diff_pct>=0))}
-    {pill_html("Revenue", f"{rev_actual_B:.2f}B", est=f"{rev_est_B_disp}",
-               delta=f"{rev_diff_pct:+.2f}%", good=(rev_diff_pct>=0))}
-    {pill_html("Next Qtr EPS", f"{next_eps_est_disp}", est="1.19", delta=None, good=True)}
-    {pill_html("Next Qtr Rev", f"{next_rev_est_disp}", est="52.76B",
-               delta=f"{next_rev_diff_pct:+.2f}%", good=(next_rev_diff_pct>=0))}
+    {pill_eps}
+    {pill_rev}
+    {pill_next_eps}
+    {pill_next_rev}
   </div>
-"""
+""".format(
+    pill_eps = pill_html(
+        "EPS",
+        f"{eps_actual:.2f}" if isinstance(eps_actual,(int,float)) else "TBD",
+        est=f"{eps_est}",
+        delta=f"{eps_diff_pct:+.2f}%",
+        good=(eps_diff_pct >= 0)
+    ),
+    pill_rev = pill_html(
+        "Revenue",
+        f"{rev_actual_B:.2f}B" if isinstance(rev_actual_B,(int,float)) else "N/A",
+        est=f"{rev_est_B_disp}",
+        delta=f"{rev_diff_pct:+.2f}%",
+        good=(rev_diff_pct >= 0)
+    ),
+    pill_next_eps = pill_html(
+        "Next Qtr EPS",
+        f"{next_eps_est_disp}",
+        est="TBD",        # 予想値が2軸あるなら est に「コンセンサス」等を表示
+        delta=None,
+        good=True
+    ),
+    pill_next_rev = pill_html(
+        "Next Qtr Rev",
+        f"{next_rev_est_disp}",
+        est="TBD",
+        delta=f"{next_rev_diff_pct:+.2f}%",
+        good=(next_rev_diff_pct >= 0)
+    )
+)
+
 st.markdown(grid_html, unsafe_allow_html=True)
 
 # --- 4) 横棒ターゲット（Before/After/Analyst/AI） ---
