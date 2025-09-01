@@ -128,36 +128,32 @@ def _pick_latest_quarter(values: list) -> dict | None:
     # 無ければ最後の要素
     return values[-1]
 
-def _first_val(facts: dict, keys: list[str]) -> tuple[float|None, dict|None]:
-    """
-    XBRL facts から keys の順で USD 値を探す。 (value, meta) を返す
-    """
-    if not facts: 
+def _first_val(facts: dict, keys: list[tuple[str, str]]) -> tuple[float | None, dict | None]:
+    """XBRL facts から (namespace, tag) の順で探して (value, meta) を返す"""
+    if not facts:
         return None, None
+
     for key in keys:
-        f = facts.get("facts", {}).get(key)
+        f = _get_fact_obj(facts, key)
         if not f:
             continue
         units = f.get("units", {})
-        usd = None
-        # 典型: "USD", "USD/shares"
-        for ukey in ("USD", "USD/shares", "USD/share"):
+        # 使われやすい順にユニットを探す
+        for ukey in ("USD", "USD/shares", "USD/share", "shares", "pure"):
             if ukey in units:
-                usd = units[ukey]
-                break
-        if not usd:
-            continue
-        v = _pick_latest_quarter(usd)
-        if v is None: 
-            continue
-        val = v.get("val")
-        if val is None:
-            continue
-        try:
-            return float(val), v
-        except Exception:
-            continue
+                cand = units[ukey]
+                v = _pick_latest_quarter(cand)
+                if v is None:
+                    break
+                val = v.get("val")
+                if val is None:
+                    break
+                try:
+                    return float(val), v
+                except Exception:
+                    break
     return None, None
+
 
 def _try_compute_eps_diluted(facts: dict) -> tuple[float|None, dict|None]:
     """ EPS Diluted が無いとき NetIncome / WeightedAverageDilutedShares で再計算 """
@@ -184,6 +180,36 @@ def get_us_actuals_from_sec(ticker: str) -> dict:
     """
     cik = resolve_cik(ticker)
     facts = sec_company_facts(cik)
+    
+    {
+  "facts": {
+    "us-gaap": {
+      "Revenues": { "units": { "USD": [ ... ] } },
+      "EarningsPerShareDiluted": { ... }
+    },
+    "dei": { ... },
+    "ifrs-full": { ... }
+  }
+}
+# --- GAAP/IFRS tag keys ---
+GAAP_REVENUE_KEYS = [
+    ("us-gaap", "SalesRevenueNet"),
+    ("us-gaap", "Revenues"),
+    ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
+]
+GAAP_EPS_DILUTED = ("us-gaap", "EarningsPerShareDiluted")
+GAAP_NET_INCOME  = ("us-gaap", "NetIncomeLoss")
+GAAP_WAD_SHARES  = ("us-gaap", "WeightedAverageNumberOfDilutedSharesOutstanding")
+
+# IFRS 企業向けのフォールバック（TSM 等）
+IFRS_REVENUE_KEYS = [
+    ("ifrs-full", "Revenue"),
+]
+IFRS_NET_INCOME  = ("ifrs-full", "ProfitLoss")
+def _get_fact_obj(facts: dict, key: tuple[str, str]) -> dict | None:
+    ns, tag = key
+    return facts.get("facts", {}).get(ns, {}).get(tag)
+
     rev, meta_r = _first_val(facts, GAAP_REVENUE_KEYS)
     eps, meta_e = _first_val(facts, [GAAP_EPS_DILUTED])
     if eps is None:  # フォールバック計算
