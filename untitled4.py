@@ -31,7 +31,6 @@ MAIL = st.secrets.get("SEC_CONTACT", "gaurrd5300@gmail.com")
 SEC_HEADERS = {
     "User-Agent": f"{APP}/1.0 ({MAIL})",
     "Accept-Encoding": "gzip, deflate",
-    "Host": "data.sec.gov",
 }
 # === SEC throttle & helper ===
 import time, requests
