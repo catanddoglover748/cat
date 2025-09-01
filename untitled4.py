@@ -24,12 +24,15 @@ import requests, time, math
 from functools import lru_cache
 
 # ⚠ SEC の User-Agent は実アプリ名/連絡先メールを入れてください（EDGAR 規約）
+
+APP = st.secrets.get("SEC_APP_NAME", "StockEarningsDash")
+MAIL = st.secrets.get("SEC_CONTACT", "gaurrd5300@gmail.com")
+
 SEC_HEADERS = {
-    "User-Agent": "StockEarningsDashboard/1.0 ()",
+    "User-Agent": f"{APP}/1.0 ({MAIL})",
     "Accept-Encoding": "gzip, deflate",
     "Host": "data.sec.gov",
 }
-
 # === SEC throttle & helper ===
 import time, requests
 
